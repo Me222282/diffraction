@@ -3,27 +3,27 @@ use num::{traits::{ConstOne, ConstZero, FloatConst}, Complex, Float};
 pub fn compute_nth_roots<T: Float + ConstOne + ConstZero + FloatConst>(n: usize) -> Box<[Complex<T>]>
 {
     let hn = n.div_ceil(2);
-    let mut result = Vec::<Complex<T>>::with_capacity(hn);
+    let mut result = vec![Complex::<T>::ZERO; hn];
     let mut w = Complex::<T>::ONE;
     let wn = Complex::cis(T::TAU() / T::from(n).unwrap());
     result[0] = w;
     
-    for i in 1..hn
+    for x in &mut result
     {
         w = w * wn;
-        result[i] = w;
+        *x = w;
     }
     
     return result.into_boxed_slice();
 }
 
-pub fn dft<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
-{
-    fft_recursive(wn, y);
-}
+// pub fn dft<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
+// {
+//     fft_recursive(wn, y);
+// }
 
 /// `y.len()`must be a power of 2
-fn fft_recursive<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
+pub fn fft_recursive<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
 {
     let n = y.len();
     if n == 1 { return; }
@@ -44,7 +44,7 @@ fn fft_recursive<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
 }
 
 /// `y.len()`must be a power of 2
-fn fft_iterative<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
+pub fn fft_iterative<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
 {
     let n = y.len();
     let mut s = 2;
@@ -53,14 +53,15 @@ fn fft_iterative<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
     {
         for i in (0..n).step_by(s)
         {
-            for j in i..(i + hs)
+            for k in 0..hs
             {
-                let j2 = j + hs;
-                let y0 = y[j];
+                let j1 = k + i;
+                let j2 = j1 + hs;
+                let y0 = y[j1];
                 let y1 = y[j2];
                 
-                let w = wn[j];
-                y[j] = y0 + (w * y1);
+                let w = wn[k];
+                y[j1] = y0 + (w * y1);
                 y[j2] = y0 - (w * y1);
             }
         }

@@ -1,7 +1,18 @@
 [package]
-name = "fft"
+name = "diffraction"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+criterion = "0.5.1"
 num = "0.4.3"
+rand = "0.9.1"
+backend = { path = "./backend" }
+
+[workspace]
+resolver = "1"
+members = ["backend"]
+
+[[bench]]
+name = "fft"
+harness = false
