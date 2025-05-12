@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use rand::random;
 
-use criterion::{criterion_group, criterion_main, Bencher, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkGroup, BenchmarkId, Criterion};
 use num::Complex;
 
 use backend::*;
@@ -45,51 +45,72 @@ fn it_bench(b: &mut Bencher, data: &(&[Complex<f32>], &[Complex<f32>]))
         return start.elapsed();
     } )
 }
+fn rec2_bench(b: &mut Bencher, data: &(&[Complex<f32>], &[Complex<f32>]))
+{
+    b.iter_custom(|iters|
+    {
+        let mut copy = vec![Complex::<f32>::ZERO; data.1.len()];
+        copy.copy_from_slice(data.1);
+        let start = Instant::now();
+        for _ in 0..iters
+        {
+            unsafe
+            {
+                fft_recursive_v2(data.0, copy.as_mut_slice());
+            }
+        }
+        return start.elapsed();
+    } )
+}
+fn it2_bench(b: &mut Bencher, data: &(&[Complex<f32>], &[Complex<f32>]))
+{
+    b.iter_custom(|iters|
+    {
+        let mut copy = vec![Complex::<f32>::ZERO; data.1.len()];
+        copy.copy_from_slice(data.1);
+        let start = Instant::now();
+        for _ in 0..iters
+        {
+            unsafe
+            {
+                fft_iterative_v2(data.0, copy.as_mut_slice());
+            }
+        }
+        return start.elapsed();
+    } )
+}
+
+fn bench_all(group: &mut BenchmarkGroup<'_, WallTime>, size: usize)
+{
+    let data = gen_data(size);
+    let wn = compute_nth_roots::<f32>(size);
+    
+    group.bench_with_input(
+        BenchmarkId::new("Recursive", size),
+        &(wn.as_ref(), data.as_ref()),
+        rec_bench);
+    group.bench_with_input(
+        BenchmarkId::new("Iterative", size),
+        &(wn.as_ref(), data.as_ref()),
+        it_bench);
+    group.bench_with_input(
+        BenchmarkId::new("Recursive_V2", size),
+        &(wn.as_ref(), data.as_ref()),
+        rec2_bench);
+    group.bench_with_input(
+        BenchmarkId::new("Iterative_V2", size),
+        &(wn.as_ref(), data.as_ref()),
+        it2_bench);
+}
 
 fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("FFT");
     
     // size 8
-    let size = 8;
-    let data = gen_data(size);
-    let wn = compute_nth_roots::<f32>(size);
-    
-    group.bench_with_input(
-        BenchmarkId::new("Recursive", size),
-        &(wn.as_ref(), data.as_ref()),
-        rec_bench);
-    group.bench_with_input(
-        BenchmarkId::new("Iterative", size),
-        &(wn.as_ref(), data.as_ref()),
-        it_bench);
-    
-    // size 16
-    let size = 16;
-    let data = gen_data(size);
-    let wn = compute_nth_roots::<f32>(size);
-    
-    group.bench_with_input(
-        BenchmarkId::new("Recursive", size),
-        &(wn.as_ref(), data.as_ref()),
-        rec_bench);
-    group.bench_with_input(
-        BenchmarkId::new("Iterative", size),
-        &(wn.as_ref(), data.as_ref()),
-        it_bench);
-    
-    // size 64
-    let size = 64;
-    let data = gen_data(size);
-    let wn = compute_nth_roots::<f32>(size);
-    
-    group.bench_with_input(
-        BenchmarkId::new("Recursive", size),
-        &(wn.as_ref(), data.as_ref()),
-        rec_bench);
-    group.bench_with_input(
-        BenchmarkId::new("Iterative", size),
-        &(wn.as_ref(), data.as_ref()),
-        it_bench);
+    bench_all(&mut group, 8);
+    bench_all(&mut group, 16);
+    bench_all(&mut group, 64);
+    bench_all(&mut group, 128);
     
     group.finish();
 }
