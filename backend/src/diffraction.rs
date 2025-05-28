@@ -17,7 +17,7 @@ impl Wave
         return Self { intensity: amp, lambda: C / freq };
     }
     
-    pub fn diffract(self, beta_lambda: f64) -> Complex<f64>
+    pub fn diffract(&self, beta_lambda: f64) -> Complex<f64>
     {
         if beta_lambda == 0.0
         {
@@ -35,20 +35,34 @@ impl Wave
 pub struct Slit
 {
     pub width: f64,
-    pub distance: f64
+    pub position: f64
 }
 
 impl Slit
 {
-    pub fn new(width: f64, distance: f64) -> Self
+    pub fn new(width: f64, position: f64) -> Self
     {
-        return Self { width, distance };
+        return Self { width, position };
     }
     
-    pub fn beta_lambda(self, x: f64) -> f64
+    pub fn beta_lambda(&self, x: f64, d: f64) -> f64
     {
-        let d2 = self.distance * self.distance;
+        let x = x - self.position;
+        
+        let d2 = d * d;
         let x2 = x * x;
         return (PI * x * self.width) / (d2 + x2).sqrt();
+    }
+}
+
+pub fn calculate_intensity(slits: &[Slit], waves: &[Wave], x: f64, dist: f64, result: &mut [Complex<f64>])
+{
+    for s in slits
+    {
+        let bl = s.beta_lambda(x, dist);
+        for (res, wave) in result.iter_mut().zip(waves)
+        {
+            *res += wave.diffract(bl);
+        }
     }
 }
