@@ -2,10 +2,11 @@ use iced::mouse::Button;
 use iced::widget::shader::{Event, Primitive, Program};
 use iced::advanced::graphics::core::event::Status;
 use iced::{Point, Rectangle};
+use zene_structs::real;
 
 pub struct PlotData
 {
-    pub points: Vec<f32>
+    pub points: Vec<real>
 }
 
 #[derive(Default)]
@@ -16,7 +17,7 @@ pub struct PlotState
 
 pub struct Plot<'a, S, F, Message>
     where S: Fn(usize) -> Message,
-        F: Fn(usize, f32) -> Message
+        F: Fn(usize, real) -> Message
 {
     on_size: S,
     on_value: F,
@@ -25,7 +26,7 @@ pub struct Plot<'a, S, F, Message>
 
 impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
     where S: Fn(usize) -> Message,
-        F: Fn(usize, f32) -> Message
+        F: Fn(usize, real) -> Message
 {
     type State = PlotState;
     type Primitive = Lines;
@@ -65,7 +66,7 @@ impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
                     let v = (bounds.height - p.y) / bounds.height;
                     let x = p.x as usize;
                     
-                    return (Status::Captured, Some((self.on_value)(x, v)));
+                    return (Status::Captured, Some((self.on_value)(x, v as real)));
                 }
             },
             Event::Mouse(iced::mouse::Event::ButtonReleased(Button::Left)) =>
@@ -85,7 +86,7 @@ impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
                     let v = (bounds.height - p.y) / bounds.height;
                     let x = p.x as usize;
                     
-                    return (Status::Captured, Some((self.on_value)(x, v)));
+                    return (Status::Captured, Some((self.on_value)(x, v as real)));
                 }
             },
             _ => {}
@@ -98,15 +99,20 @@ impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
         &self,
         state: &Self::State,
         bounds: iced::Rectangle,
-        cursor: iced::advanced::mouse::Cursor,
-    ) -> iced::advanced::mouse::Interaction {
+        cursor: iced::advanced::mouse::Cursor) -> iced::advanced::mouse::Interaction
+    {
         let is_mouse_over = cursor.is_over(bounds);
         
-        if state.mouse_hold {
+        if state.mouse_hold
+        {
             iced::advanced::mouse::Interaction::Pointer
-        } else if is_mouse_over {
+        }
+        else if is_mouse_over
+        {
             iced::advanced::mouse::Interaction::Pointer
-        } else {
+        }
+        else
+        {
             iced::advanced::mouse::Interaction::default()
         }
     }
@@ -127,8 +133,8 @@ impl Primitive for Lines
         format: iced::widget::shader::wgpu::TextureFormat,
         storage: &mut iced::widget::shader::Storage,
         bounds: &Rectangle,
-        viewport: &iced::widget::shader::Viewport,
-    ) {
+        viewport: &iced::widget::shader::Viewport)
+    {
         todo!()
     }
 
@@ -137,8 +143,8 @@ impl Primitive for Lines
         encoder: &mut iced::widget::shader::wgpu::CommandEncoder,
         storage: &iced::widget::shader::Storage,
         target: &iced::widget::shader::wgpu::TextureView,
-        clip_bounds: &Rectangle<u32>,
-    ) {
+        clip_bounds: &Rectangle<u32>)
+    {
         todo!()
     }
 }

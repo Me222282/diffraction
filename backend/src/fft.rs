@@ -17,10 +17,19 @@ pub fn compute_nth_roots<T: Float + ConstOne + ConstZero + FloatConst>(n: usize)
     return result.into_boxed_slice();
 }
 
-// pub fn dft<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
-// {
-//     fft_recursive(wn, y);
-// }
+fn power_of_2(n: usize) -> bool
+{
+    return (n & (n - 1)) == 0;
+}
+
+pub fn dft<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
+{
+    if !power_of_2(y.len())
+    {
+        panic!("y must have a power of 2 length");
+    }
+    fft_iterative_v3(wn, y);
+}
 
 /// `y.len()`must be a power of 2
 pub fn fft_recursive<T: Float>(wn: &[Complex<T>], y: &mut [Complex<T>])
