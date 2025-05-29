@@ -4,17 +4,19 @@ use num::{traits::{ConstOne, ConstZero, FloatConst}, Complex, Float};
 
 pub struct Wave<T: Float>
 {
-    pub amplitude: T,
+    pub intensity: T,
     pub lambda: T
 }
 
+impl<T: Float> Wave<T>
+{
+    pub fn new(wavelength: T, intensity: T) -> Self
+    {
+        return Self { intensity, lambda: wavelength };
+    }
+}
 impl<T: Float + ConstOne + ConstZero> Wave<T>
 {
-    pub fn new(wavelength: T, amplitude: T) -> Self
-    {
-        return Self { amplitude, lambda: wavelength };
-    }
-    
     pub fn diffract(&self, beta_lambda: T) -> Complex<T>
     {
         if beta_lambda.is_zero()
