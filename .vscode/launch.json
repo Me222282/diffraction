@@ -4,15 +4,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'fft'",
+            "name": "Debug executable 'diffraction'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=fft",
-                    "--package=fft"
+                    "--bin=diffraction",
+                    "--package=diffraction"
                 ],
                 "filter": {
-                    "name": "fft",
+                    "name": "diffraction",
                     "kind": "bin"
                 }
             },
@@ -22,16 +22,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'fft'",
+            "name": "Debug unit tests in executable 'diffraction'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=fft",
-                    "--package=fft"
+                    "--bin=diffraction",
+                    "--package=diffraction"
                 ],
                 "filter": {
-                    "name": "fft",
+                    "name": "diffraction",
                     "kind": "bin"
                 }
             },

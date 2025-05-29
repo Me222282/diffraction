@@ -1,4 +1,5 @@
 use num::{traits::{ConstOne, ConstZero, FloatConst}, Complex, Float};
+use zene_structs::{Vector2, Vector};
 
 // pub const C: f64 = 299_792_458.0;
 
@@ -14,10 +15,9 @@ impl<T: Float> Wave<T>
     {
         return Self { intensity, lambda: wavelength };
     }
-}
-impl<T: Float + ConstOne + ConstZero> Wave<T>
-{
+    
     pub fn diffract(&self, beta_lambda: T) -> Complex<T>
+        where T: ConstOne + ConstZero
     {
         if beta_lambda.is_zero()
         {
@@ -32,37 +32,67 @@ impl<T: Float + ConstOne + ConstZero> Wave<T>
     }
 }
 
-pub struct Slit<T: Float>
+pub struct Slit<'a, T: Float>
 {
     pub width: T,
-    pub position: T
+    pub position: Vector2<T>,
+    direction: Vector2<T>,
+    pub waves: &'a [Wave<T>]
 }
 
-impl<T: Float + FloatConst> Slit<T>
+impl<'a, T: Float> Slit<'a, T>
 {
-    pub fn new(width: T, position: T) -> Self
+    pub fn new(width: T, position: Vector2<T>, direction: Vector2<T>, waves: &'a [Wave<T>]) -> Self
     {
-        return Self { width, position };
+        return Self {
+            width,
+            position,
+            direction: direction.normalised(),
+            waves
+        };
     }
     
-    pub fn beta_lambda(&self, x: T, d: T) -> T
+    pub fn get_direction(&self) -> Vector2<T>
     {
-        let x = x - self.position;
-        
-        let d2 = d * d;
-        let x2 = x * x;
-        return (T::PI() * x * self.width) / (d2 + x2).sqrt();
+        return self.direction;
     }
-}
-
-pub fn calculate_intensity<T: Float + ConstOne + ConstZero + FloatConst>(slits: &[Slit<T>], waves: &[Wave<T>], x: T, dist: T, result: &mut [Complex<T>])
-{
-    for s in slits
+    pub fn set_direction(&mut self, direction: Vector2<T>)
     {
-        let bl = s.beta_lambda(x, dist);
-        for (res, wave) in result.iter_mut().zip(waves)
+        self.direction = direction.normalised();
+    }
+    
+    pub fn beta_lambda(&self, x: Vector2<T>) -> Option<T>
+        where T: FloatConst + ConstZero
+    {
+        let diff = x - self.position;
+        let dir = self.direction;
+        
+        // outside viewing angle
+        if diff.dot(dir) < T::ZERO
         {
-            *res = *res + wave.diffract(bl);
+            return None;
         }
+        
+        // sin of acute angle
+        let sin = diff.perp_dot(dir) / diff.length();
+        // beta = pi * d * sin(theta) / lambda
+        return Some(T::PI() * self.width * sin);
+    }
+    
+    pub fn calculate_intensity(&self, x: Vector2<T>, result: &mut [Complex<T>])
+        where T: ConstOne + ConstZero + FloatConst
+    {
+        let bl_o = self.beta_lambda(x);
+        match bl_o
+        {
+            Some(bl) =>
+            {
+                for (res, wave) in result.iter_mut().zip(self.waves)
+                {
+                    *res = *res + wave.diffract(bl);
+                }
+            },
+            None => {}
+        };
     }
 }

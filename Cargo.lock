@@ -34,6 +34,7 @@ name = "backend"
 version = "0.1.0"
 dependencies = [
  "num",
+ "zene_structs",
 ]
 
 [[package]]
@@ -187,6 +188,7 @@ dependencies = [
  "criterion",
  "num",
  "rand",
+ "zene_structs",
 ]
 
 [[package]]
@@ -760,6 +762,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "zene_structs"
+version = "0.1.0"
+source = "git+https://github.com/Me222282/zs_rust.git#51239f9b2c8c12ae6809f204da3ab3793c7d5bec"
+dependencies = [
+ "num-traits",
+ "zs_core",
+ "zs_macros",
+]
+
+[[package]]
 name = "zerocopy"
 version = "0.8.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -777,4 +789,24 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "zs_core"
+version = "0.1.0"
+source = "git+https://github.com/Me222282/zs_rust.git#51239f9b2c8c12ae6809f204da3ab3793c7d5bec"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "zs_macros"
+version = "0.1.0"
+source = "git+https://github.com/Me222282/zs_rust.git#51239f9b2c8c12ae6809f204da3ab3793c7d5bec"
+dependencies = [
+ "num-traits",
+ "proc-macro2",
+ "quote",
+ "syn",
+ "zs_core",
 ]
