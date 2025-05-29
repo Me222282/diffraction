@@ -9,6 +9,7 @@ num = "0.4.3"
 rand = "0.9.1"
 backend = { path = "./backend" }
 zene_structs = { git = "https://github.com/Me222282/zs_rust.git" }
+iced = { version = "0.13.1", features = ["advanced"] }
 
 [workspace]
 resolver = "1"
