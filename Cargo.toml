@@ -10,6 +10,7 @@ rand = "0.9.1"
 backend = { path = "./backend" }
 zene_structs = { git = "https://github.com/Me222282/zs_rust.git" }
 iced = { version = "0.13.1", features = ["advanced"] }
+bytemuck = "1.21.0"
 
 [workspace]
 resolver = "1"

@@ -879,6 +879,7 @@ name = "diffraction"
 version = "0.1.0"
 dependencies = [
  "backend",
+ "bytemuck",
  "criterion",
  "iced",
  "num",

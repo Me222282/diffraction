@@ -1,4 +1,5 @@
 mod plot_element;
+mod line_renderer;
 
 use iced::{widget::{button, column, slider, text}, Alignment, Element};
 

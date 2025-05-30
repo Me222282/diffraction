@@ -1,12 +1,16 @@
+use std::sync::Arc;
+
 use iced::mouse::Button;
-use iced::widget::shader::{Event, Primitive, Program};
+use iced::widget::shader::{Event, Program};
 use iced::advanced::graphics::core::event::Status;
 use iced::{Point, Rectangle};
-use zene_structs::real;
+use zene_structs::Vector4;
+
+use crate::line_renderer::Lines;
 
 pub struct PlotData
 {
-    pub points: Vec<real>
+    pub points: Arc<[f32]>
 }
 
 #[derive(Default)]
@@ -17,27 +21,28 @@ pub struct PlotState
 
 pub struct Plot<'a, S, F, Message>
     where S: Fn(usize) -> Message,
-        F: Fn(usize, real) -> Message
+        F: Fn(usize, f32) -> Message
 {
     on_size: S,
     on_value: F,
-    data: &'a PlotData
+    data: &'a PlotData,
+    colour: Vector4<f32>
 }
 
 impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
     where S: Fn(usize) -> Message,
-        F: Fn(usize, real) -> Message
+        F: Fn(usize, f32) -> Message
 {
     type State = PlotState;
     type Primitive = Lines;
 
     fn draw(
         &self,
-        state: &Self::State,
-        cursor: iced::advanced::mouse::Cursor,
+        _state: &Self::State,
+        _cursor: iced::advanced::mouse::Cursor,
         bounds: Rectangle) -> Self::Primitive
     {
-        todo!()
+        return Lines::new(self.colour, self.data.points.clone(), bounds);
     }
     
     fn update(
@@ -66,7 +71,7 @@ impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
                     let v = (bounds.height - p.y) / bounds.height;
                     let x = p.x as usize;
                     
-                    return (Status::Captured, Some((self.on_value)(x, v as real)));
+                    return (Status::Captured, Some((self.on_value)(x, v)));
                 }
             },
             Event::Mouse(iced::mouse::Event::ButtonReleased(Button::Left)) =>
@@ -86,7 +91,7 @@ impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
                     let v = (bounds.height - p.y) / bounds.height;
                     let x = p.x as usize;
                     
-                    return (Status::Captured, Some((self.on_value)(x, v as real)));
+                    return (Status::Captured, Some((self.on_value)(x, v)));
                 }
             },
             _ => {}
@@ -115,36 +120,5 @@ impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
         {
             iced::advanced::mouse::Interaction::default()
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct Lines
-{
-    
-}
-
-impl Primitive for Lines
-{
-    fn prepare(
-        &self,
-        device: &iced::widget::shader::wgpu::Device,
-        queue: &iced::widget::shader::wgpu::Queue,
-        format: iced::widget::shader::wgpu::TextureFormat,
-        storage: &mut iced::widget::shader::Storage,
-        bounds: &Rectangle,
-        viewport: &iced::widget::shader::Viewport)
-    {
-        todo!()
-    }
-
-    fn render(
-        &self,
-        encoder: &mut iced::widget::shader::wgpu::CommandEncoder,
-        storage: &iced::widget::shader::Storage,
-        target: &iced::widget::shader::wgpu::TextureView,
-        clip_bounds: &Rectangle<u32>)
-    {
-        todo!()
     }
 }
