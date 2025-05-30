@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use iced::mouse::Button;
 use iced::widget::shader::{Event, Program};
 use iced::advanced::graphics::core::event::Status;
@@ -8,9 +6,10 @@ use zene_structs::Vector4;
 
 use crate::line_renderer::Lines;
 
+#[derive(Debug, Clone, Default)]
 pub struct PlotData
 {
-    pub points: Arc<[f32]>
+    pub points: Vec<f32>
 }
 
 #[derive(Default)]
@@ -19,19 +18,39 @@ pub struct PlotState
     mouse_hold: bool
 }
 
-pub struct Plot<'a, S, F, Message>
+pub struct Plot<'a, S, F, G, Message>
     where S: Fn(usize) -> Message,
-        F: Fn(usize, f32) -> Message
+        F: Fn(usize, f32) -> Message,
+        G: Fn(usize, f32) -> Message
 {
     on_size: S,
-    on_value: F,
+    on_place: F,
+    on_drag: G,
     data: &'a PlotData,
     colour: Vector4<f32>
 }
 
-impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
+impl<'a, S, F, G, Message> Plot<'a, S, F, G, Message>
     where S: Fn(usize) -> Message,
-        F: Fn(usize, f32) -> Message
+        F: Fn(usize, f32) -> Message,
+        G: Fn(usize, f32) -> Message
+{
+    pub fn new(on_size: S, on_place: F, on_drag: G, data: &'a PlotData) -> Self
+    {
+        return Self {
+            on_size,
+            on_place,
+            on_drag,
+            data,
+            colour: Vector4::<f32>::new(1.0, 0.0, 0.0, 1.0)
+        };
+    }
+}
+
+impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
+    where S: Fn(usize) -> Message,
+        F: Fn(usize, f32) -> Message,
+        G: Fn(usize, f32) -> Message
 {
     type State = PlotState;
     type Primitive = Lines;
@@ -71,12 +90,12 @@ impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
                     let v = (bounds.height - p.y) / bounds.height;
                     let x = p.x as usize;
                     
-                    return (Status::Captured, Some((self.on_value)(x, v)));
+                    return (Status::Captured, Some((self.on_place)(x, v)));
                 }
             },
             Event::Mouse(iced::mouse::Event::ButtonReleased(Button::Left)) =>
             {
-                if cursor.position_over(bounds).is_some()
+                if state.mouse_hold
                 {
                     state.mouse_hold = false;
                     return (Status::Captured, None);
@@ -87,11 +106,11 @@ impl<'a, S, F, Message> Program<Message> for Plot<'a, S, F, Message>
                 if state.mouse_hold
                 {
                     let p = position - bounds.position();
-                    let p = Point::new(p.x.clamp(0.0, bounds.width), p.y.clamp(0.0, bounds.height));
+                    let p = Point::new(p.x.clamp(0.0, bounds.width - 1.0), p.y.clamp(0.0, bounds.height));
                     let v = (bounds.height - p.y) / bounds.height;
                     let x = p.x as usize;
                     
-                    return (Status::Captured, Some((self.on_value)(x, v)));
+                    return (Status::Captured, Some((self.on_drag)(x, v)));
                 }
             },
             _ => {}
