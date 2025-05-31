@@ -59,9 +59,9 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
         &self,
         _state: &Self::State,
         _cursor: iced::advanced::mouse::Cursor,
-        bounds: Rectangle) -> Self::Primitive
+        _bounds: Rectangle) -> Self::Primitive
     {
-        return Lines::new(self.colour, self.data.points.clone(), bounds);
+        return Lines::new(self.colour, self.data.points.clone());
     }
     
     fn update(

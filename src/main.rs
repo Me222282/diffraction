@@ -1,7 +1,7 @@
 mod plot_element;
 mod line_renderer;
 
-use iced::{widget::{button, column, shader, slider, text}, Alignment, Element};
+use iced::{widget::{button, column, shader, slider, text}, Alignment, Element, Length, Padding};
 use plot_element::{Plot, PlotData};
 
 #[derive(Debug, Clone)]
@@ -36,7 +36,7 @@ fn lerp_index(vec: &Vec<f32>, i: f32) -> f32
     
     let a = vec[l];
     let b = vec[u];
-    return ((a - b) * i) + b;
+    return ((b - a) * i) + a;
 }
 fn remap(a: &Vec<f32>, b: &mut Vec<f32>)
 {
@@ -53,24 +53,47 @@ fn remap(a: &Vec<f32>, b: &mut Vec<f32>)
         fi += step;
     }
 }
+fn fill(plot: &mut PlotData, start: (usize, f32), end: (usize, f32))
+{
+    if start.0 > end.0
+    {
+        fill(plot, end, start);
+        return;
+    }
+    
+    let diff = end.1 - start.1;
+    let scale = 1.0 / (1 + end.0 - start.0) as f32;
+    
+    // first is already done
+    for p in plot.points[start.0..=end.0].iter_mut().enumerate().skip(1)
+    {
+        let v = p.0 as f32 * scale;
+        *p.1 = start.1 + (diff * v);
+    }
+}
 
-fn update(state: &mut State, message: Message) {
-    match message {
+fn update(state: &mut State, message: Message)
+{
+    match message
+    {
         Message::Increment => state.counter += 1,
         Message::Set(v) => state.counter = v,
         Message::PlotSize(size) =>
         {
-            let old = &state.plot.points;
             let mut new = vec![0.0; size];
             
-            remap(old, &mut new);
+            remap(&state.plot.points, &mut new);
             
             state.plot.points = new;
         },
-        Message::PlotPoint(i, v) => state.plot.points[i] = v,
-        Message::PlotLine(i, v) =>
+        Message::PlotPoint(i, v) =>
         {
             state.plot.points[i] = v;
+            state.last_point = (i, v);
+        },
+        Message::PlotLine(i, v) =>
+        {
+            fill(&mut state.plot, state.last_point, (i, v));
             state.last_point = (i, v);
         }
     }
@@ -81,13 +104,14 @@ fn view(state: &State) -> Element<Message> {
         text(state.counter).size(20),
         button("Increment").on_press(Message::Increment),
         slider(0..=50, state.counter, Message::Set),
-        shader(Plot::new(Message::PlotSize, Message::PlotPoint, Message::PlotLine, &state.plot))
+        shader(Plot::new(Message::PlotSize, Message::PlotPoint, Message::PlotLine, &state.plot)).width(Length::Fixed(200.0))
     ]
     .spacing(10)
     .align_x(Alignment::Center)
+    .padding(Padding::new(5.0))
     .into()
 }
 
 fn main() {
-    let _ = iced::run("A cool counter", update, view);
+    let _ = iced::run("Plotter", update, view);
 }

@@ -3,25 +3,23 @@ use iced::widget::shader::wgpu::*;
 use iced::widget::shader::Primitive;
 use iced::Rectangle;
 use num::Zero;
-use zene_structs::{Matrix4, Vector4};
+use zene_structs::Vector4;
 
 #[derive(Debug)]
 pub struct Lines
 {
     colour: Vector4<f32>,
-    bounds: Rectangle,
     data: Vec<f32>,
     size: u32
 }
 
 impl Lines
 {
-    pub fn new(colour: Vector4<f32>, data: Vec<f32>, bounds: Rectangle) -> Self
+    pub fn new(colour: Vector4<f32>, data: Vec<f32>) -> Self
     {
         let size = data.len() as u32;
         return Self {
             colour,
-            bounds,
             data,
             size
         };
@@ -38,7 +36,7 @@ impl Primitive for Lines
         // custom pipelines go here
         storage: &mut iced::widget::shader::Storage,
         _: &Rectangle,
-        viewport: &iced::widget::shader::Viewport)
+        _viewport: &iced::widget::shader::Viewport)
     {
         let pipe = storage.get_mut::<LinePipe>();
         let pipe = match pipe
@@ -52,13 +50,7 @@ impl Primitive for Lines
             },
         };
         
-        let bounds = self.bounds;
-        // let mat = Matrix4::<f32>::from(viewport.projection().as_ref()) *
-        //     Matrix4::<f32>::create_scale_2(bounds.width / (self.size as f32), bounds.height) *
-        //     Matrix4::<f32>::create_translation_2([bounds.x, bounds.y].into());
-        let mat = Matrix4::<f32>::identity();
-        
-        let uni_dat = Uniform { matrix: mat, colour: self.colour };
+        let uni_dat = Uniform { colour: self.colour, h_width: (self.size as f32) / 2.0 };
         queue.write_buffer(&pipe.uniform_buffer, 0,
             bytemuck::cast_slice(&[uni_dat]));
         
@@ -111,8 +103,8 @@ impl Primitive for Lines
 #[derive(Copy, Clone, Debug)]
 struct Uniform
 {
-    matrix: Matrix4<f32>,
-    colour: Vector4<f32>
+    colour: Vector4<f32>,
+    h_width: f32
 }
 unsafe impl bytemuck::Pod for Uniform {}
 unsafe impl bytemuck::Zeroable for Uniform {}
@@ -133,10 +125,12 @@ impl LinePipe
         queue: &iced::widget::shader::wgpu::Queue,
         data: &[f32])
     {
-        if self.vertices < data.len()
+        let len = data.len();
+        if self.vertices < len
         {
-            self.vertices = data.len();
+            self.vertices = len;
             // recreate buffer
+            self.vertex_buffer.destroy();
             self.vertex_buffer = device.create_buffer_init(
                 &util::BufferInitDescriptor {
                     label: Some("lines.verts"),
@@ -157,7 +151,7 @@ impl LinePipe
     {
         let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("lines.uniform"),
-            contents: bytemuck::cast_slice(&[Uniform { matrix: Matrix4::<f32>::identity(), colour: Vector4::<f32>::zero() }]),
+            contents: bytemuck::cast_slice(&[Uniform { colour: Vector4::<f32>::zero(), h_width: 1.0 }]),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST
         });
         
