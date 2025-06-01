@@ -10,15 +10,19 @@ use crate::PLOTTER_SIZE;
 #[derive(Debug)]
 pub struct Lines
 {
-    data: Vec<[f32; 4]>
+    data: Vec<[f32; 4]>,
+    scale: f32,
+    vertex_select: bool
 }
 
 impl Lines
 {
-    pub fn new(data: Vec<[f32; 4]>) -> Self
+    pub fn new(data: Vec<[f32; 4]>, vertex_select: bool, scale: f32) -> Self
     {
         return Self {
-            data
+            data,
+            scale,
+            vertex_select
         };
     }
 }
@@ -49,7 +53,7 @@ impl Primitive for Lines
         
         let uni_dat = Uniform {
             background: Vector4::new(0.0, 0.0, 0.0, 1.0),
-            h_size: Vector2::new(bounds.width, bounds.height * 0.5)
+            h_size: Vector2::new(bounds.width, bounds.height * self.scale)
         };
         queue.write_buffer(&pipe.uniform_buffer, 0,
             bytemuck::cast_slice(&[uni_dat]));
@@ -113,7 +117,14 @@ impl Primitive for Lines
                     clip_bounds.height as f32, 0.0, 1.0);
                 render_pass.set_pipeline(&pipe.render_pipeline);
                 render_pass.set_bind_group(0, &pipe.bind_group, &[]);
-                render_pass.set_vertex_buffer(0, pipe.vertex_buffer.slice(..));
+                
+                let buffer = match self.vertex_select
+                {
+                    true => &pipe.vertex_buffer_1,
+                    false => &pipe.vertex_buffer_0
+                };
+                render_pass.set_vertex_buffer(0, buffer.slice(..));
+                
                 render_pass.draw(0..4, 0..1);
             },
             None => {},
@@ -144,7 +155,8 @@ impl Default for Uniform
 struct LinePipe
 {
     render_pipeline: RenderPipeline,
-    vertex_buffer: Buffer,
+    vertex_buffer_0: Buffer,
+    vertex_buffer_1: Buffer,
     uniform_buffer: Buffer,
     sample_texture: Texture,
     bind_group: BindGroup
@@ -249,7 +261,7 @@ impl LinePipe
             push_constant_ranges: &[]
         });
         
-        let vertex_buffer = device.create_buffer_init(
+        let vertex_buffer_0 = device.create_buffer_init(
             &util::BufferInitDescriptor {
                 label: Some("lines.verts"),
                 contents: bytemuck::cast_slice(&[
@@ -258,6 +270,19 @@ impl LinePipe
                     1.0f32, 1.0f32,     1.0f32, 1.0f32,
                     -1.0f32, -1.0f32,   0.0f32, -1.0f32,
                     1.0f32, -1.0f32,    1.0f32, -1.0f32
+                ]),
+                usage: BufferUsages::VERTEX
+            }
+        );
+        let vertex_buffer_1 = device.create_buffer_init(
+            &util::BufferInitDescriptor {
+                label: Some("lines.verts"),
+                contents: bytemuck::cast_slice(&[
+                    // pos              uv
+                    -1.0f32, 1.0f32,    0.0f32, 1.0f32,
+                    1.0f32, 1.0f32,     1.0f32, 1.0f32,
+                    -1.0f32, -1.0f32,   0.0f32, 0.0f32,
+                    1.0f32, -1.0f32,    1.0f32, 0.0f32
                 ]),
                 usage: BufferUsages::VERTEX
             }
@@ -303,7 +328,8 @@ impl LinePipe
         
         return Self {
             render_pipeline,
-            vertex_buffer,
+            vertex_buffer_0,
+            vertex_buffer_1,
             uniform_buffer,
             sample_texture,
             bind_group

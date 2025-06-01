@@ -69,7 +69,7 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
             let v = p.0 as f32 * s;
             let c = c0.lerp(c1, v);
             return [c.x, c.y, c.z, *p.1];
-        }).collect());
+        }).collect(), false, 0.5);
     }
     
     fn update(
