@@ -1,6 +1,9 @@
 mod plot_element;
 mod spectrum_element;
-mod line_renderer;
+mod plot_renderer;
+mod spectrum_renderer;
+
+use std::f32::consts::TAU;
 
 use backend::{compute_nth_roots, dft_analysis, next_power_of_2};
 use iced::{widget::{button, column, shader, slider, text}, Alignment, Element, Length, Padding};
@@ -9,6 +12,7 @@ use plot_element::{Plot, PlotData};
 use spectrum_element::Spectrum;
 
 pub const PLOTTER_SIZE: u32 = 200;
+pub const SPECTRUM_SIZE: u32 = 256;
 
 #[derive(Debug, Clone)]
 enum Message
@@ -17,7 +21,8 @@ enum Message
     Set(u32),
     PlotSize(usize),
     PlotPoint(usize, f32),
-    PlotLine(usize, f32)
+    PlotLine(usize, f32),
+    FillSine
 }
 
 #[derive(Debug, Clone, Default)]
@@ -121,18 +126,30 @@ fn update(state: &mut State, message: Message)
             state.last_point = (i, v);
             update_data(state);
         }
+        Message::FillSine =>
+        {
+            let step = TAU / (state.plot.points.len() as f32);
+            let mut t = 0.0f32;
+            for v in state.plot.points.iter_mut()
+            {
+                *v = t.sin();
+                t += step;
+            }
+            update_data(state);
+        },
     }
 }
 
 fn view(state: &State) -> Element<Message>
 {
-    let spec_size = state.spectrum.len().min(PLOTTER_SIZE as usize);
+    let spec_size = state.spectrum.len().min(SPECTRUM_SIZE as usize);
     column![
         text(state.counter).size(20),
         button("Increment").on_press(Message::Increment),
         slider(0..=50, state.counter, Message::Set),
+        button("Sine").on_press(Message::FillSine),
         shader(Plot::new(Message::PlotSize, Message::PlotPoint, Message::PlotLine, &state.plot)).width(Length::Fixed(PLOTTER_SIZE as f32)),
-        shader(Spectrum::new(&state.spectrum[0..spec_size])).width(Length::Fixed(PLOTTER_SIZE as f32))
+        shader(Spectrum::new(&state.spectrum[0..spec_size])).width(Length::Fixed(SPECTRUM_SIZE as f32))
     ]
     .spacing(10)
     .align_x(Alignment::Center)

@@ -4,7 +4,7 @@ use iced::Rectangle;
 use num::complex::Complex32;
 use zene_structs::{Vector3, Vector};
 
-use crate::line_renderer::Lines;
+use crate::spectrum_renderer::Lines;
 
 pub struct Spectrum<'a>
 {
@@ -40,8 +40,8 @@ impl<'a, Message> Program<Message> for Spectrum<'a>
             let c = c0.lerp(c1, v);
             let amp = p.1.norm();
             if amp > ma { ma = amp; }
-            return [c.x, c.y, c.z, amp];
-        }).collect(), true, 1.0 / ma);
+            return [amp, c.x, c.y, c.z];
+        }).collect(), 1.0 / ma);
     }
     
     fn update(
