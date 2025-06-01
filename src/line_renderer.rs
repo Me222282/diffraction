@@ -2,26 +2,25 @@ use iced::widget::shader::wgpu::util::{BufferInitDescriptor, DeviceExt};
 use iced::widget::shader::wgpu::*;
 use iced::widget::shader::Primitive;
 use iced::Rectangle;
-use num::Zero;
-use zene_structs::Vector4;
+use num::{One, Zero};
+use zene_structs::{Vector2, Vector4};
+
+use crate::PLOTTER_SIZE;
 
 #[derive(Debug)]
 pub struct Lines
 {
     colour: Vector4<f32>,
-    data: Vec<f32>,
-    size: u32
+    data: Vec<f32>
 }
 
 impl Lines
 {
     pub fn new(colour: Vector4<f32>, data: Vec<f32>) -> Self
     {
-        let size = data.len() as u32;
         return Self {
             colour,
-            data,
-            size
+            data
         };
     }
 }
@@ -35,7 +34,7 @@ impl Primitive for Lines
         format: iced::widget::shader::wgpu::TextureFormat,
         // custom pipelines go here
         storage: &mut iced::widget::shader::Storage,
-        _: &Rectangle,
+        bounds: &Rectangle,
         _viewport: &iced::widget::shader::Viewport)
     {
         let pipe = storage.get_mut::<LinePipe>();
@@ -50,11 +49,37 @@ impl Primitive for Lines
             },
         };
         
-        let uni_dat = Uniform { colour: self.colour, h_width: (self.size as f32) / 2.0 };
+        let uni_dat = Uniform {
+            colour: self.colour,
+            light_colour: Vector4::<f32>::one() - ((Vector4::<f32>::one() - self.colour) * Vector4::<f32>::single(0.3)),
+            h_size: Vector2::<f32>::new(bounds.width, bounds.height * 0.5)
+        };
         queue.write_buffer(&pipe.uniform_buffer, 0,
             bytemuck::cast_slice(&[uni_dat]));
+        // queue.write_buffer(&pipe.sample_buffer, 0,
+        //     bytemuck::cast_slice(&self.data));
         
-        pipe.write_vertex(device, queue, &self.data);
+        let size = self.data.len() as u32;
+        
+        queue.write_texture(
+            // Tells wgpu where to copy the pixel data
+            ImageCopyTexture {
+                texture: &pipe.sample_texture,
+                mip_level: 0,
+                aspect: TextureAspect::All,
+                origin: Origin3d::ZERO
+            },
+            // The actual pixel data
+            &bytemuck::cast_slice(&self.data),
+            // The layout of the texture
+            ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * size),
+                rows_per_image: None,
+            },
+            Extent3d { width: size, height: 1, depth_or_array_layers: 1 });
+        
+        // pipe.write_vertex(device, queue, &self.data);
     }
 
     fn render(
@@ -92,7 +117,7 @@ impl Primitive for Lines
                 render_pass.set_pipeline(&pipe.render_pipeline);
                 render_pass.set_bind_group(0, &pipe.bind_group, &[]);
                 render_pass.set_vertex_buffer(0, pipe.vertex_buffer.slice(..));
-                render_pass.draw(0..self.size, 0..1);
+                render_pass.draw(0..4, 0..1);
             },
             None => {},
         };
@@ -104,46 +129,58 @@ impl Primitive for Lines
 struct Uniform
 {
     colour: Vector4<f32>,
-    h_width: f32
+    light_colour: Vector4<f32>,
+    h_size: Vector2<f32>
 }
 unsafe impl bytemuck::Pod for Uniform {}
 unsafe impl bytemuck::Zeroable for Uniform {}
+impl Default for Uniform
+{
+    fn default() -> Self
+    {
+        Self {
+            colour: Vector4::<f32>::zero(),
+            light_colour: Vector4::<f32>::zero(),
+            h_size: Vector2::<f32>::zero()
+        }
+    }
+}
 
 struct LinePipe
 {
     render_pipeline: RenderPipeline,
     vertex_buffer: Buffer,
     uniform_buffer: Buffer,
-    bind_group: BindGroup,
-    vertices: usize
+    sample_texture: Texture,
+    bind_group: BindGroup
 }
 
 impl LinePipe
 {
-    pub fn write_vertex(&mut self,
-        device: &iced::widget::shader::wgpu::Device,
-        queue: &iced::widget::shader::wgpu::Queue,
-        data: &[f32])
-    {
-        let len = data.len();
-        if self.vertices < len
-        {
-            self.vertices = len;
-            // recreate buffer
-            self.vertex_buffer.destroy();
-            self.vertex_buffer = device.create_buffer_init(
-                &util::BufferInitDescriptor {
-                    label: Some("lines.verts"),
-                    contents: bytemuck::cast_slice(data),
-                    usage: BufferUsages::VERTEX | BufferUsages::COPY_DST
-                }
-            );
-            return;
-        }
+    // pub fn write_vertex(&mut self,
+    //     device: &iced::widget::shader::wgpu::Device,
+    //     queue: &iced::widget::shader::wgpu::Queue,
+    //     data: &[f32])
+    // {
+    //     let len = data.len();
+    //     if self.vertices < len
+    //     {
+    //         self.vertices = len;
+    //         // recreate buffer
+    //         self.vertex_buffer.destroy();
+    //         self.vertex_buffer = device.create_buffer_init(
+    //             &util::BufferInitDescriptor {
+    //                 label: Some("lines.verts"),
+    //                 contents: bytemuck::cast_slice(data),
+    //                 usage: BufferUsages::VERTEX | BufferUsages::COPY_DST
+    //             }
+    //         );
+    //         return;
+    //     }
         
-        queue.write_buffer(&self.vertex_buffer, 0,
-            bytemuck::cast_slice(data));
-    }
+    //     queue.write_buffer(&self.vertex_buffer, 0,
+    //         bytemuck::cast_slice(data));
+    // }
     
     pub fn new(
         device: &iced::widget::shader::wgpu::Device,
@@ -151,11 +188,39 @@ impl LinePipe
     {
         let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("lines.uniform"),
-            contents: bytemuck::cast_slice(&[Uniform { colour: Vector4::<f32>::zero(), h_width: 1.0 }]),
+            contents: bytemuck::cast_slice(&[Uniform::default()]),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST
         });
         
-        let uniform_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        // let sample_buffer = device.create_buffer_init(&BufferInitDescriptor {
+        //     label: Some("lines.samples"),
+        //     contents: bytemuck::cast_slice(&[Uniform { colour: Vector4::<f32>::zero(), h_size: Vector2::<f32>::zero() }]),
+        //     usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST
+        // });
+        let sample_texture = device.create_texture(&TextureDescriptor {
+                size: Extent3d { width: PLOTTER_SIZE, height: 1, depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D1,
+                format: TextureFormat::R32Float,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+                label: Some("lines.samples"),
+                view_formats: &[]
+            }
+        );
+        
+        let sample_texture_view = sample_texture.create_view(&TextureViewDescriptor::default());
+        // let sample_sampler = device.create_sampler(&SamplerDescriptor {
+        //     address_mode_u: AddressMode::ClampToEdge,
+        //     address_mode_v: AddressMode::ClampToEdge,
+        //     address_mode_w: AddressMode::ClampToEdge,
+        //     mag_filter: FilterMode::Linear,
+        //     min_filter: FilterMode::Nearest,
+        //     mipmap_filter: FilterMode::Nearest,
+        //     ..Default::default()
+        // });
+        
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("lines.uniform.bind"),
             entries: &[
                 BindGroupLayoutEntry {
@@ -167,39 +232,71 @@ impl LinePipe
                         min_binding_size: None,
                     },
                     count: None,
-                }
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: TextureViewDimension::D1,
+                        sample_type: TextureSampleType::Float { filterable: false },
+                    },
+                    count: None,
+                },
+                // BindGroupLayoutEntry {
+                //     binding: 2,
+                //     visibility: ShaderStages::FRAGMENT,
+                //     // This should match the filterable field of the
+                //     // corresponding Texture entry above.
+                //     ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                //     count: None,
+                // }
             ]
         });
-        let uniform_bind_group = device.create_bind_group(&BindGroupDescriptor {
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("lines.uniform.group"),
-            layout: &uniform_bind_group_layout,
+            layout: &bind_group_layout,
             entries: &[
                 BindGroupEntry {
                     binding: 0,
                     resource: uniform_buffer.as_entire_binding(),
-                }
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&sample_texture_view),
+                },
+                // BindGroupEntry {
+                //     binding: 2,
+                //     resource: BindingResource::Sampler(&sample_sampler),
+                // }
             ]
         });
         
         let shader = device.create_shader_module(include_wgsl!("line_shader.wgsl"));
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("lines.rp.lay"),
-            bind_group_layouts: &[&uniform_bind_group_layout],
+            bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[]
         });
         
         let vertex_buffer = device.create_buffer_init(
             &util::BufferInitDescriptor {
                 label: Some("lines.verts"),
-                contents: bytemuck::cast_slice(&[0f32, 0f32]),
-                usage: BufferUsages::VERTEX | BufferUsages::COPY_DST
+                contents: bytemuck::cast_slice(&[
+                    // pos              uv
+                    -1.0f32, 1.0f32,    0.0f32, 1.0f32,
+                    1.0f32, 1.0f32,     1.0f32, 1.0f32,
+                    -1.0f32, -1.0f32,   0.0f32, -1.0f32,
+                    1.0f32, -1.0f32,    1.0f32, -1.0f32
+                ]),
+                usage: BufferUsages::VERTEX
             }
         );
         
         let buffer_layout = VertexBufferLayout {
-            array_stride: std::mem::size_of::<f32>() as BufferAddress,
+            array_stride: std::mem::size_of::<[f32; 4]>() as BufferAddress,
             step_mode: VertexStepMode::Vertex,
-            attributes: &vertex_attr_array![0 => Float32]
+            attributes: &vertex_attr_array![0 => Float32x2, 1 => Float32x2]
         };
         
         let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -216,12 +313,12 @@ impl LinePipe
                 entry_point: "fs_main",
                 targets: &[Some(ColorTargetState {
                     format,
-                    blend: Some(BlendState::REPLACE),
+                    blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })]
             }),
             primitive: PrimitiveState {
-                topology: PrimitiveTopology::LineStrip,
+                topology: PrimitiveTopology::TriangleStrip,
                 front_face: FrontFace::Cw,
                 ..Default::default()
             },
@@ -238,8 +335,8 @@ impl LinePipe
             render_pipeline,
             vertex_buffer,
             uniform_buffer,
-            bind_group: uniform_bind_group,
-            vertices: 2
+            sample_texture,
+            bind_group
         };
     }
 }

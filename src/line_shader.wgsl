@@ -1,22 +1,110 @@
 struct Globals
 {
     colour: vec4<f32>,
-    h_width: f32
+    light: vec4<f32>,
+    // half on height, full on width
+    h_size: vec2<f32>
 };
+
+struct VertexIn
+{
+    @location(0) position: vec2<f32>,
+    @location(1) uv: vec2<f32>
+}
+
+struct VertexOut
+{
+    @builtin(position) pos: vec4<f32>,
+    @location(0) sample: vec2<f32>,
+}
 
 @group(0) @binding(0)
 var<uniform> uniform_data: Globals;
+@group(0) @binding(1)
+var data_source: texture_1d<f32>;
+// @group(0) @binding(2)
+// var data_sampler: sampler;
 
 @vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32, @location(0) in: f32) -> @builtin(position) vec4<f32>
+fn vs_main(@builtin(vertex_index) i: u32, in: VertexIn) -> VertexOut
 {
-    let pos = vec4<f32>((f32(in_vertex_index) / uniform_data.h_width) - 1.0, (in * 1.99) - 1.0, 0.0, 1.0);
-    // let pos = vec4<f32>(f32(in_vertex_index), f32(in_vertex_index), 0.0, 0.0);
-    return pos;
+    var out: VertexOut;
+    out.pos = vec4<f32>(in.position, 0.0, 1.0);
+    out.sample = vec2<f32>(in.uv.x * (uniform_data.h_size.x - 1.0), in.uv.y * uniform_data.h_size.y);
+    return out;
+}
+
+fn load_sample(index: u32) -> i32
+{
+    let s = textureLoad(data_source, index + 1u, 0).r * uniform_data.h_size.y * 0.999;
+    return get_current(s);
+}
+fn get_current(v: f32) -> i32
+{
+    return i32(v + uniform_data.h_size.y) - i32(uniform_data.h_size.y);
 }
 
 @fragment
-fn fs_main() -> @location(0) vec4<f32>
+fn fs_main(in: VertexOut) -> @location(0) vec4<f32>
 {
-    return uniform_data.colour;
+    let index = u32(in.sample.x);
+    let v = load_sample(index);
+    let c = get_current(in.sample.y);
+    
+    // outside plot
+    if c > v && c >= 0
+    {
+        if index > 0u
+        {
+            // joining points
+            let lv = load_sample(index - 1u);
+            if c < lv
+            {
+                return uniform_data.colour;
+            }
+        }
+        if c != 0
+        {
+            discard;
+        }
+    }
+    if c <= 0 && c < v
+    {
+        if index > 0u
+        {
+            // joining points
+            let lv = load_sample(index - 1u);
+            if c > lv
+            {
+                return uniform_data.colour;
+            }
+        }
+        if c != 0
+        {
+            discard;
+        }
+    }
+    
+    // on plot line
+    if c == v
+    {
+        return uniform_data.colour;
+    }
+    if index > 0u
+    {
+        // joining points
+        let lv = load_sample(index - 1u);
+        if (c > lv && c > 0) || (c < lv && c < 0)
+        {
+            return uniform_data.colour;
+        }
+    }
+    
+    // vertical lines
+    if (index % 10u == 0u)
+    {
+        return mix(uniform_data.light, uniform_data.colour, 0.5);
+    }
+    
+    return uniform_data.light;
 }

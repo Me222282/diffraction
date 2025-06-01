@@ -4,6 +4,8 @@ mod line_renderer;
 use iced::{widget::{button, column, shader, slider, text}, Alignment, Element, Length, Padding};
 use plot_element::{Plot, PlotData};
 
+pub const PLOTTER_SIZE: u32 = 200;
+
 #[derive(Debug, Clone)]
 enum Message
 {
@@ -104,7 +106,7 @@ fn view(state: &State) -> Element<Message> {
         text(state.counter).size(20),
         button("Increment").on_press(Message::Increment),
         slider(0..=50, state.counter, Message::Set),
-        shader(Plot::new(Message::PlotSize, Message::PlotPoint, Message::PlotLine, &state.plot)).width(Length::Fixed(200.0))
+        shader(Plot::new(Message::PlotSize, Message::PlotPoint, Message::PlotLine, &state.plot)).width(Length::Fixed(PLOTTER_SIZE as f32))
     ]
     .spacing(10)
     .align_x(Alignment::Center)

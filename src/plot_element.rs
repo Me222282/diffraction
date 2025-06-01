@@ -79,6 +79,7 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
             shell.publish((self.on_size)(width));
         }
         
+        let hh = bounds.height * 0.5;
         match event
         {
             Event::Mouse(iced::mouse::Event::ButtonPressed(Button::Left)) =>
@@ -87,10 +88,10 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
                 {
                     state.mouse_hold = true;
                     let p = cursor_position - bounds.position();
-                    let v = (bounds.height - p.y) / bounds.height;
+                    let v = (bounds.height - p.y) / hh;
                     let x = p.x as usize;
                     
-                    return (Status::Captured, Some((self.on_place)(x, v)));
+                    return (Status::Captured, Some((self.on_place)(x, v - 1.0)));
                 }
             },
             Event::Mouse(iced::mouse::Event::ButtonReleased(Button::Left)) =>
@@ -107,10 +108,10 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
                 {
                     let p = position - bounds.position();
                     let p = Point::new(p.x.clamp(0.0, bounds.width - 1.0), p.y.clamp(0.0, bounds.height));
-                    let v = (bounds.height - p.y) / bounds.height;
+                    let v = (bounds.height - p.y) / hh;
                     let x = p.x as usize;
                     
-                    return (Status::Captured, Some((self.on_drag)(x, v)));
+                    return (Status::Captured, Some((self.on_drag)(x, v - 1.0)));
                 }
             },
             _ => {}
