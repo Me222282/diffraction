@@ -2,7 +2,7 @@ use iced::widget::shader::wgpu::util::{BufferInitDescriptor, DeviceExt};
 use iced::widget::shader::wgpu::*;
 use iced::widget::shader::Primitive;
 use iced::Rectangle;
-use num::{One, Zero};
+use num::Zero;
 use zene_structs::{Vector2, Vector4};
 
 use crate::PLOTTER_SIZE;
@@ -10,16 +10,14 @@ use crate::PLOTTER_SIZE;
 #[derive(Debug)]
 pub struct Lines
 {
-    colour: Vector4<f32>,
-    data: Vec<f32>
+    data: Vec<[f32; 4]>
 }
 
 impl Lines
 {
-    pub fn new(colour: Vector4<f32>, data: Vec<f32>) -> Self
+    pub fn new(data: Vec<[f32; 4]>) -> Self
     {
         return Self {
-            colour,
             data
         };
     }
@@ -50,9 +48,8 @@ impl Primitive for Lines
         };
         
         let uni_dat = Uniform {
-            colour: self.colour,
-            light_colour: Vector4::<f32>::one() - ((Vector4::<f32>::one() - self.colour) * Vector4::<f32>::single(0.3)),
-            h_size: Vector2::<f32>::new(bounds.width, bounds.height * 0.5)
+            background: Vector4::new(0.0, 0.0, 0.0, 1.0),
+            h_size: Vector2::new(bounds.width, bounds.height * 0.5)
         };
         queue.write_buffer(&pipe.uniform_buffer, 0,
             bytemuck::cast_slice(&[uni_dat]));
@@ -74,7 +71,7 @@ impl Primitive for Lines
             // The layout of the texture
             ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(4 * size),
+                bytes_per_row: Some(4 * 4 * size),
                 rows_per_image: None,
             },
             Extent3d { width: size, height: 1, depth_or_array_layers: 1 });
@@ -128,8 +125,7 @@ impl Primitive for Lines
 #[derive(Copy, Clone, Debug)]
 struct Uniform
 {
-    colour: Vector4<f32>,
-    light_colour: Vector4<f32>,
+    background: Vector4<f32>,
     h_size: Vector2<f32>
 }
 unsafe impl bytemuck::Pod for Uniform {}
@@ -139,9 +135,8 @@ impl Default for Uniform
     fn default() -> Self
     {
         Self {
-            colour: Vector4::<f32>::zero(),
-            light_colour: Vector4::<f32>::zero(),
-            h_size: Vector2::<f32>::zero()
+            background: Vector4::zero(),
+            h_size: Vector2::zero()
         }
     }
 }
@@ -157,31 +152,6 @@ struct LinePipe
 
 impl LinePipe
 {
-    // pub fn write_vertex(&mut self,
-    //     device: &iced::widget::shader::wgpu::Device,
-    //     queue: &iced::widget::shader::wgpu::Queue,
-    //     data: &[f32])
-    // {
-    //     let len = data.len();
-    //     if self.vertices < len
-    //     {
-    //         self.vertices = len;
-    //         // recreate buffer
-    //         self.vertex_buffer.destroy();
-    //         self.vertex_buffer = device.create_buffer_init(
-    //             &util::BufferInitDescriptor {
-    //                 label: Some("lines.verts"),
-    //                 contents: bytemuck::cast_slice(data),
-    //                 usage: BufferUsages::VERTEX | BufferUsages::COPY_DST
-    //             }
-    //         );
-    //         return;
-    //     }
-        
-    //     queue.write_buffer(&self.vertex_buffer, 0,
-    //         bytemuck::cast_slice(data));
-    // }
-    
     pub fn new(
         device: &iced::widget::shader::wgpu::Device,
         format: iced::widget::shader::wgpu::TextureFormat) -> LinePipe
@@ -202,7 +172,7 @@ impl LinePipe
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: TextureDimension::D1,
-                format: TextureFormat::R32Float,
+                format: TextureFormat::Rgba32Float,
                 usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
                 label: Some("lines.samples"),
                 view_formats: &[]

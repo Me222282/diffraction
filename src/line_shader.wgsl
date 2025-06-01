@@ -1,7 +1,6 @@
 struct Globals
 {
-    colour: vec4<f32>,
-    light: vec4<f32>,
+    background: vec4<f32>,
     // half on height, full on width
     h_size: vec2<f32>
 };
@@ -36,7 +35,7 @@ fn vs_main(@builtin(vertex_index) i: u32, in: VertexIn) -> VertexOut
 
 fn load_sample(index: u32) -> i32
 {
-    let s = textureLoad(data_source, index + 1u, 0).r * uniform_data.h_size.y * 0.999;
+    let s = textureLoad(data_source, index + 1u, 0).a * uniform_data.h_size.y * 0.999;
     return get_current(s);
 }
 fn get_current(v: f32) -> i32
@@ -48,8 +47,11 @@ fn get_current(v: f32) -> i32
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32>
 {
     let index = u32(in.sample.x);
-    let v = load_sample(index);
+    // let v = load_sample(index);
+    let sample = textureLoad(data_source, index + 1u, 0);
+    let v = get_current(sample.a * uniform_data.h_size.y * 0.999);
     let c = get_current(in.sample.y);
+    let colour = vec4<f32>(sample.rgb, 1.0);
     
     // outside plot
     if c > v && c >= 0
@@ -60,12 +62,12 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32>
             let lv = load_sample(index - 1u);
             if c < lv
             {
-                return uniform_data.colour;
+                return colour;
             }
         }
         if c != 0
         {
-            discard;
+            return uniform_data.background;
         }
     }
     if c <= 0 && c < v
@@ -76,19 +78,19 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32>
             let lv = load_sample(index - 1u);
             if c > lv
             {
-                return uniform_data.colour;
+                return colour;
             }
         }
         if c != 0
         {
-            discard;
+            return uniform_data.background;
         }
     }
     
     // on plot line
     if c == v
     {
-        return uniform_data.colour;
+        return colour;
     }
     if index > 0u
     {
@@ -96,15 +98,15 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32>
         let lv = load_sample(index - 1u);
         if (c > lv && c > 0) || (c < lv && c < 0)
         {
-            return uniform_data.colour;
+            return colour;
         }
     }
     
     // vertical lines
     if (index % 10u == 0u)
     {
-        return mix(uniform_data.light, uniform_data.colour, 0.5);
+        return mix(uniform_data.background, colour, 0.6);
     }
     
-    return uniform_data.light;
+    return mix(uniform_data.background, colour, 0.3);
 }

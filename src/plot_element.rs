@@ -2,7 +2,7 @@ use iced::mouse::Button;
 use iced::widget::shader::{Event, Program};
 use iced::advanced::graphics::core::event::Status;
 use iced::{Point, Rectangle};
-use zene_structs::Vector4;
+use zene_structs::{Vector3, Vector};
 
 use crate::line_renderer::Lines;
 
@@ -27,7 +27,7 @@ pub struct Plot<'a, S, F, G, Message>
     on_place: F,
     on_drag: G,
     data: &'a PlotData,
-    colour: Vector4<f32>
+    colour: Vector3<f32>
 }
 
 impl<'a, S, F, G, Message> Plot<'a, S, F, G, Message>
@@ -42,7 +42,7 @@ impl<'a, S, F, G, Message> Plot<'a, S, F, G, Message>
             on_place,
             on_drag,
             data,
-            colour: Vector4::<f32>::new(1.0, 0.0, 0.0, 1.0)
+            colour: Vector3::new(1.0, 0.0, 0.0)
         };
     }
 }
@@ -61,7 +61,15 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
         _cursor: iced::advanced::mouse::Cursor,
         _bounds: Rectangle) -> Self::Primitive
     {
-        return Lines::new(self.colour, self.data.points.clone());
+        let c0 = self.colour;
+        let c1 = Vector3::<f32>::new(0.0, 1.0, 0.0);
+        let s = 1.0 / (self.data.points.len() as f32);
+        return Lines::new(self.data.points.iter().enumerate().map(|p|
+        {
+            let v = p.0 as f32 * s;
+            let c = c0.lerp(c1, v);
+            return [c.x, c.y, c.z, *p.1];
+        }).collect());
     }
     
     fn update(
