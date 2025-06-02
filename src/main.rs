@@ -5,7 +5,7 @@ mod spectrum_renderer;
 
 use std::f32::consts::TAU;
 
-use backend::{compute_nth_roots, dft_analysis, next_power_of_2};
+use backend::{WCache, dft_analysis};
 use iced::{widget::{button, column, shader, slider, text}, Alignment, Element, Length, Padding};
 use num::complex::Complex32;
 use plot_element::{Plot, PlotData};
@@ -31,7 +31,7 @@ struct State
     counter: u32,
     plot: PlotData,
     spectrum: Vec<Complex32>,
-    wn: Box<[Complex32]>,
+    wn: WCache<f32>,
     last_point: (usize, f32)
 }
 
@@ -40,13 +40,7 @@ fn update_data(state: &mut State)
     let len = state.plot.points.len();
     if len == 0 { return; }
     
-    let s = next_power_of_2(len);
-    if state.wn.len() != s
-    {
-        state.wn = compute_nth_roots(s);
-    }
-    
-    state.spectrum = dft_analysis(&state.wn, &state.plot.points);
+    state.spectrum = dft_analysis(&mut state.wn, &state.plot.points);
 }
 
 fn lerp_index(vec: &Vec<f32>, i: f32) -> f32

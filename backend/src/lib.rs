@@ -9,7 +9,9 @@ pub use crate::repeat_until::*;
 
 use num::Complex;
 use num::Float;
+use zene_structs::ConstOne;
 use zene_structs::ConstZero;
+use zene_structs::FloatConst;
 
 pub fn get_waves<T: Float + From<usize>>(dft: &[Complex<T>], dt: T, speed: T) -> Box<[Wave<T>]>
 {
@@ -22,17 +24,20 @@ pub fn get_waves<T: Float + From<usize>>(dft: &[Complex<T>], dt: T, speed: T) ->
     return waves.collect::<Vec<Wave<T>>>().into_boxed_slice();
 }
 
-pub fn next_power_of_2(n: usize) -> usize
+fn next_power_of_2(n: usize) -> u32
 {
-    return 1 << (usize::BITS - n.leading_zeros());
+    return usize::BITS - n.leading_zeros();
 }
 
-pub fn dft_analysis<T: Float + ConstZero>(wn: &[Complex<T>], plot: &[T]) -> Vec<Complex<T>>
+pub fn dft_analysis<T: Float + ConstOne + ConstZero + FloatConst>(
+    wn: &mut WCache<T>, plot: &[T]) -> Vec<Complex<T>>
 {
     // at least 1 loop of the plot, but no more than 2
-    let size = next_power_of_2(plot.len());
-    let mut data: Vec<Complex<T>> = RepeatUntil::new(plot, size)
+    let power = next_power_of_2(plot.len());
+    let mut data: Vec<Complex<T>> = RepeatUntil::new(plot, 1 << power)
         .map(|v| Complex::new(*v, T::ZERO)).collect();
+    
+    wn.ensure_max_power(power as usize);
     
     dft(wn, &mut data);
     return data;
