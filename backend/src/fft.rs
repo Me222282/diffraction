@@ -3,14 +3,15 @@ use num::{traits::{ConstOne, ConstZero, FloatConst}, Complex, Float};
 #[derive(Debug, Clone, Default)]
 pub struct WCache<T>
 {
-    nth_roots: Vec<Box<[Complex<T>]>>
+    nth_roots: Vec<Box<[Complex<T>]>>,
+    invert: bool
 }
 impl<T: Float + ConstOne + ConstZero + FloatConst> WCache<T>
 {
-    pub fn new() -> Self
+    pub fn new(invert: bool) -> Self
     {
-        let nth_roots = vec![compute_nth_roots(2)];
-        return Self { nth_roots };
+        let nth_roots = vec![compute_nth_roots(2, invert)];
+        return Self { nth_roots, invert };
     }
     pub fn get_nth_roots(&self, power: usize) -> &[Complex<T>]
     {
@@ -27,17 +28,31 @@ impl<T: Float + ConstOne + ConstZero + FloatConst> WCache<T>
         
         for x in len..power
         {
-            self.nth_roots.push(compute_nth_roots(2 << x));
+            self.nth_roots.push(compute_nth_roots(2 << x, self.invert));
         }
+    }
+    pub fn set_invert(&mut self, invert: bool)
+    {
+        if self.invert == invert { return; }
+        
+        // recalculate all data for inverted/normal fft
+        let power = self.nth_roots.len();
+        self.nth_roots.clear();
+        self.ensure_max_power(power);
     }
 }
 
-fn compute_nth_roots<T: Float + ConstOne + ConstZero + FloatConst>(n: usize) -> Box<[Complex<T>]>
+fn compute_nth_roots<T: Float + ConstOne + ConstZero + FloatConst>(n: usize, invert: bool) -> Box<[Complex<T>]>
 {
     let hn = n.div_ceil(2);
     let mut result = vec![Complex::<T>::ZERO; hn];
+    // let mut result = vec![Complex::<T>::ZERO; n];
     let mut w = Complex::<T>::ONE;
-    let wn = Complex::cis(T::TAU() / T::from(n).unwrap());
+    let wn = match invert
+    {
+        false => Complex::cis(T::TAU() / T::from(n).unwrap()),
+        true => Complex::cis(-T::TAU() / T::from(n).unwrap())
+    };
     result[0] = w;
     
     for x in result.iter_mut().skip(1)
@@ -61,7 +76,9 @@ pub fn dft<T: Float + ConstOne + ConstZero + FloatConst>(
     {
         panic!("y must have a power of 2 length");
     }
-    fft_iterative_v3(wn, y);
+    dft_test(wn, y);
+    // fft_iterative_v3(wn, y);
+    // fft_recursive(wn, y, (usize::BITS - y.len().leading_zeros() - 1) as usize);
 }
 
 /// `y.len()`must be a power of 2
@@ -226,4 +243,39 @@ pub fn fft_iterative_v3<T: Float + ConstOne + ConstZero + FloatConst>(
         old = current;
         current += 2;
     }
+}
+
+fn dft_test<T: Float + ConstOne + ConstZero + FloatConst>(
+    wn: &WCache<T>, y: &mut [Complex<T>])
+{
+    let len = y.len();
+    let power = (usize::BITS - len.leading_zeros() - 1) as usize;
+    
+    let n = T::ONE / T::from(len).unwrap();
+    
+    let out: Vec<Complex<T>> = (0..len).map(|o|
+    {
+        // let w: &[Complex<T>];
+        // unsafe
+        // {
+        //     w = wn.get_nth_roots_unchecked(power);
+        // }
+        let k = T::from(o).unwrap();
+        
+        let mut sum = Complex::<T>::ZERO;
+        for x in y.iter().enumerate()
+        {
+            // let i = (o * x.0) % len;
+            // unsafe
+            // {
+            //     sum = sum + (*x.1 * w.get_unchecked(i));
+            // }
+            let w = Complex::<T>::cis(-T::TAU() * n * k * T::from(x.0).unwrap());
+            sum = sum + (*x.1 * w);
+        }
+        
+        return sum;
+    }).collect();
+    
+    y.copy_from_slice(&out);
 }

@@ -24,7 +24,7 @@ pub fn get_waves<T: Float + From<usize>>(dft: &[Complex<T>], dt: T, speed: T) ->
     return waves.collect::<Vec<Wave<T>>>().into_boxed_slice();
 }
 
-fn next_power_of_2(n: usize) -> u32
+pub fn next_power_of_2(n: usize) -> u32
 {
     return usize::BITS - n.leading_zeros();
 }

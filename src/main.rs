@@ -5,10 +5,11 @@ mod spectrum_renderer;
 
 use std::f32::consts::TAU;
 
-use backend::{WCache, dft_analysis};
+use backend::{dft_analysis, next_power_of_2, RepeatUntil, WCache};
 use iced::{widget::{button, column, shader, slider, text}, Alignment, Element, Length, Padding};
-use num::complex::Complex32;
+use num::{complex::Complex32, Complex};
 use plot_element::{Plot, PlotData};
+use rustfft::Fft;
 use spectrum_element::Spectrum;
 
 pub const PLOTTER_SIZE: u32 = 200;
@@ -40,6 +41,8 @@ fn update_data(state: &mut State)
     let len = state.plot.points.len();
     if len == 0 { return; }
     
+    // check means repeated calls do nothing
+    state.wn.set_invert(true);
     state.spectrum = dft_analysis(&mut state.wn, &state.plot.points);
 }
 

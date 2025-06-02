@@ -78,7 +78,7 @@ fn bench_all(group: &mut BenchmarkGroup<'_, WallTime>, power: usize)
 {
     let size = 1 << power;
     let data = gen_data(size);
-    let mut wn = WCache::<f32>::new();
+    let mut wn = WCache::<f32>::new(false);
     wn.ensure_max_power(power);
     
     group.bench_with_input(
