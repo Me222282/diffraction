@@ -10,18 +10,14 @@ use crate::SPECTRUM_SIZE;
 #[derive(Debug)]
 pub struct Lines
 {
-    data: Vec<[f32; 4]>,
-    scale: f32
+    data: Vec<[f32; 4]>
 }
 
 impl Lines
 {
-    pub fn new(data: Vec<[f32; 4]>, scale: f32) -> Self
+    pub fn new(data: Vec<[f32; 4]>) -> Self
     {
-        return Self {
-            data,
-            scale
-        };
+        return Self { data };
     }
 }
 
@@ -49,17 +45,15 @@ impl Primitive for Lines
             },
         };
         
+        let size = self.data.len() as u32;
+        
         let uni_dat = Uniform {
             foreground: Vector4::zero(),
             background: Vector4::new(0.0, 0.0, 0.0, 1.0),
-            h_size: Vector2::new(bounds.width, bounds.height * self.scale)
+            h_size: Vector2::new(size as f32, bounds.height)
         };
         queue.write_buffer(&pipe.uniform_buffer, 0,
             bytemuck::cast_slice(&[uni_dat]));
-        // queue.write_buffer(&pipe.sample_buffer, 0,
-        //     bytemuck::cast_slice(&self.data));
-        
-        let size = self.data.len() as u32;
         
         queue.write_texture(
             // Tells wgpu where to copy the pixel data

@@ -8,14 +8,15 @@ use crate::spectrum_renderer::Lines;
 
 pub struct Spectrum<'a>
 {
-    data: &'a [Complex32]
+    data: &'a [Complex32],
+    scale: f32
 }
 
 impl<'a> Spectrum<'a>
 {
-    pub fn new(data: &'a [Complex32]) -> Self
+    pub fn new(data: &'a [Complex32], scale: f32) -> Self
     {
-        return Self { data };
+        return Self { data, scale };
     }
 }
 
@@ -33,6 +34,7 @@ impl<'a, Message> Program<Message> for Spectrum<'a>
         let c0 = Vector3::<f32>::new(1.0, 1.0, 0.0);
         let c1 = Vector3::<f32>::new(0.0, 1.0, 1.0);
         let s = 1.0 / (self.data.len() as f32);
+        let s2 = self.scale * s;
         // let mut ma = 0.0;
         return Lines::new(self.data.iter().enumerate().map(|p|
         {
@@ -40,8 +42,8 @@ impl<'a, Message> Program<Message> for Spectrum<'a>
             let c = c0.lerp(c1, v);
             let amp = p.1.norm();
             // if amp > ma { ma = amp; }
-            return [amp * s, c.x, c.y, c.z];
-        }).collect(), 1.0);
+            return [amp * s2, c.x, c.y, c.z];
+        }).collect());
     }
     
     fn update(

@@ -6,7 +6,7 @@ mod spectrum_renderer;
 use std::f32::consts::TAU;
 
 use backend::{dft_analysis, WCache};
-use iced::{widget::{button, column, shader, slider, text}, Alignment, Element, Length, Padding};
+use iced::{widget::{button, column, row, shader, slider, text}, Alignment, Element, Length, Padding};
 use num::complex::Complex32;
 use plot_element::{Plot, PlotData};
 use spectrum_element::Spectrum;
@@ -17,22 +17,37 @@ pub const SPECTRUM_SIZE: u32 = 256;
 #[derive(Debug, Clone)]
 enum Message
 {
-    Increment,
-    Set(u32),
+    SetScale(f32),
     PlotSize(usize),
     PlotPoint(usize, f32),
     PlotLine(usize, f32),
-    FillSine
+    FillSine,
+    FillTriangle,
+    FillSaw,
+    FillSquare
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 struct State
 {
-    counter: u32,
+    spec_scale: f32,
     plot: PlotData,
     spectrum: Vec<Complex32>,
     wn: WCache<f32>,
     last_point: (usize, f32)
+}
+impl Default for State
+{
+    fn default() -> Self
+    {
+        return Self {
+            spec_scale: 1.0,
+            plot: Default::default(),
+            spectrum: Default::default(),
+            wn: WCache::<f32>::new(true),
+            last_point: Default::default()
+        }
+    }
 }
 
 fn update_data(state: &mut State)
@@ -40,8 +55,6 @@ fn update_data(state: &mut State)
     let len = state.plot.points.len();
     if len == 0 { return; }
     
-    // check means repeated calls do nothing
-    state.wn.set_invert(true);
     state.spectrum = dft_analysis(&mut state.wn, &state.plot.points);
 }
 
@@ -95,18 +108,30 @@ fn fill(plot: &mut PlotData, start: (usize, f32), end: (usize, f32))
     }
 }
 
+fn tri(p: f32) -> f32
+{
+    return ((p + 0.25 - (p + 0.75).floor()).abs() * 4.0) - 1.0;
+}
+fn saw(p: f32) -> f32
+{
+    return ((p - p.floor()) * 2.0) - 1.0;
+}
+fn square(p: f32) -> f32
+{
+    return ((((p * 2.0) as isize % 2) * 2) - 1) as f32;
+}
+
 fn update(state: &mut State, message: Message)
 {
     match message
     {
-        Message::Increment => state.counter += 1,
-        Message::Set(v) => state.counter = v,
+        Message::SetScale(v) => state.spec_scale = v,
         Message::PlotSize(size) =>
         {
             let mut new = vec![0.0; size];
-            
+        
             remap(&state.plot.points, &mut new);
-            
+        
             state.plot.points = new;
             update_data(state);
         },
@@ -133,6 +158,39 @@ fn update(state: &mut State, message: Message)
             }
             update_data(state);
         },
+        Message::FillTriangle =>
+        {
+            let step =  1.0 / (state.plot.points.len() as f32);
+            let mut t = 0.0f32;
+            for v in state.plot.points.iter_mut()
+            {
+                *v = tri(t);
+                t += step;
+            }
+            update_data(state);
+        },
+        Message::FillSaw =>
+        {
+            let step =  1.0 / (state.plot.points.len() as f32);
+            let mut t = 0.0f32;
+            for v in state.plot.points.iter_mut()
+            {
+                *v = saw(1.0 - t);
+                t += step;
+            }
+            update_data(state);
+        },
+        Message::FillSquare =>
+        {
+            let step =  1.0 / (state.plot.points.len() as f32);
+            let mut t = 0.0f32;
+            for v in state.plot.points.iter_mut()
+            {
+                *v = square(1.0 - t);
+                t += step;
+            }
+            update_data(state);
+        },
     }
 }
 
@@ -140,12 +198,21 @@ fn view(state: &State) -> Element<Message>
 {
     let spec_size = state.spectrum.len().min(SPECTRUM_SIZE as usize);
     column![
-        text(state.counter).size(20),
-        button("Increment").on_press(Message::Increment),
-        slider(0..=50, state.counter, Message::Set),
-        button("Sine").on_press(Message::FillSine),
-        shader(Plot::new(Message::PlotSize, Message::PlotPoint, Message::PlotLine, &state.plot)).width(Length::Fixed(PLOTTER_SIZE as f32)),
-        shader(Spectrum::new(&state.spectrum[0..spec_size])).width(Length::Fixed(SPECTRUM_SIZE as f32))
+        row![
+            button("Sine").on_press(Message::FillSine),
+            button("Triangle").on_press(Message::FillTriangle),
+            button("Saw").on_press(Message::FillSaw),
+            button("Square").on_press(Message::FillSquare)
+        ].spacing(10)
+            .align_y(Alignment::Center)
+            .padding(Padding::new(5.0)),
+        shader(Plot::new(Message::PlotSize, Message::PlotPoint, Message::PlotLine, &state.plot))
+            .width(Length::Fixed(PLOTTER_SIZE as f32)),
+        shader(Spectrum::new(&state.spectrum[0..spec_size], state.spec_scale))
+            .width(Length::Fixed(SPECTRUM_SIZE as f32)),
+        slider(1.0..=5.0, state.spec_scale, Message::SetScale).step(0.01)
+            .width(Length::Fixed(SPECTRUM_SIZE as f32)),
+        text(format!("Spectrum Scale: {:.2}", state.spec_scale)).size(20)
     ]
     .spacing(10)
     .align_x(Alignment::Center)

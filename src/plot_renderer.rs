@@ -49,17 +49,15 @@ impl Primitive for Lines
             },
         };
         
+        let size = self.data.len() as u32;
+        
         let uni_dat = Uniform {
             foreground: self.colour,
             background: Vector4::new(0.0, 0.0, 0.0, 1.0),
-            h_size: Vector2::new(bounds.width, bounds.height * 0.5)
+            h_size: Vector2::new(size as f32, bounds.height * 0.5)
         };
         queue.write_buffer(&pipe.uniform_buffer, 0,
             bytemuck::cast_slice(&[uni_dat]));
-        // queue.write_buffer(&pipe.sample_buffer, 0,
-        //     bytemuck::cast_slice(&self.data));
-        
-        let size = self.data.len() as u32;
         
         queue.write_texture(
             // Tells wgpu where to copy the pixel data
