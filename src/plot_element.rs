@@ -61,9 +61,6 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
         _cursor: iced::advanced::mouse::Cursor,
         _bounds: Rectangle) -> Self::Primitive
     {
-        // let c0 = self.colour;
-        // let c1 = Vector3::<f32>::new(0.0, 1.0, 0.0);
-        // let s = 1.0 / (self.data.points.len() as f32);
         return Lines::new(Vector4::new(self.colour.x, self.colour.y, self.colour.z, 1.0), self.data.points.clone());
     }
     

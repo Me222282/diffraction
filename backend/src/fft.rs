@@ -66,7 +66,7 @@ fn compute_nth_roots<T: Float + ConstOne + ConstZero + FloatConst>(n: usize, inv
     return result.into_boxed_slice();
 }
 
-fn power_of_2(n: usize) -> bool
+pub(super) fn power_of_2(n: usize) -> bool
 {
     return (n & (n - 1)) == 0;
 }
@@ -208,7 +208,7 @@ pub fn fft_iterative_v2<T: Float + ConstOne + ConstZero + FloatConst>(
             }
         }
         
-        hj <<= 1;
+        hj += hj;
         hs >>= 1;
         p += 1;
         m -= 1;

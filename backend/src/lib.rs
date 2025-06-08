@@ -33,18 +33,38 @@ fn next_power_of_2(n: usize) -> u32
 pub fn dft_analysis<T: Float + ConstOne + ConstZero + FloatConst>(
     wn: &mut WCache<T>, plot: &[T]) -> Vec<Complex<T>>
 {
-    // at least 1 loop of the plot, but no more than 2
     let power = next_power_of_2(plot.len());
     let hs = 1 << power;
     
     let mut data: Vec<Complex<T>> = RepeatUntil::new(plot, hs << 1)
         .map(|v| Complex::new(*v, T::ZERO)).collect();
-        // .chain(std::iter::repeat(Complex::<T>::ZERO).take(hs)).collect();
     
     wn.ensure_max_power(power as usize + 1);
     
     dft(wn, &mut data);
-    data.truncate(hs);
+    data.truncate(hs + 1);
+    return data;
+}
+
+pub fn form_plot<T: Float + ConstOne + ConstZero + FloatConst>(
+    wn: &mut WCache<T>, dft: &[Complex<T>], out_size: usize) -> Vec<Complex<T>>
+{
+    let len = dft.len() - 1;
+    
+    if !power_of_2(len)
+    {
+        panic!("dft must have a power of 2 length");
+    }
+    
+    let power = next_power_of_2(len);
+    let s = T::ONE / T::from(len << 1).unwrap();
+    let mut data: Vec<Complex<T>> = dft.iter().copied().chain(dft.iter().skip(1).rev().skip(1).map(|c| c.conj()))
+        .map(|n| n * s).collect();
+    
+    wn.ensure_max_power(power as usize);
+    
+    fft::dft(wn, &mut data);
+    data.truncate(out_size);
     return data;
 }
 
