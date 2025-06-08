@@ -24,7 +24,7 @@ pub fn get_waves<T: Float + From<usize>>(dft: &[Complex<T>], dt: T, speed: T) ->
     return waves.collect::<Vec<Wave<T>>>().into_boxed_slice();
 }
 
-pub fn next_power_of_2(n: usize) -> u32
+fn next_power_of_2(n: usize) -> u32
 {
     return usize::BITS - n.leading_zeros();
 }
@@ -34,11 +34,15 @@ pub fn dft_analysis<T: Float + ConstOne + ConstZero + FloatConst>(
 {
     // at least 1 loop of the plot, but no more than 2
     let power = next_power_of_2(plot.len());
-    let mut data: Vec<Complex<T>> = RepeatUntil::new(plot, 1 << power)
-        .map(|v| Complex::new(*v, T::ZERO)).collect();
+    let hs = 1 << power;
     
-    wn.ensure_max_power(power as usize);
+    let mut data: Vec<Complex<T>> = RepeatUntil::new(plot, hs << 1)
+        .map(|v| Complex::new(*v, T::ZERO)).collect();
+        // .chain(std::iter::repeat(Complex::<T>::ZERO).take(hs)).collect();
+    
+    wn.ensure_max_power(power as usize + 1);
     
     dft(wn, &mut data);
+    data.truncate(hs);
     return data;
 }

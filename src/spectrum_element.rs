@@ -33,15 +33,15 @@ impl<'a, Message> Program<Message> for Spectrum<'a>
         let c0 = Vector3::<f32>::new(1.0, 1.0, 0.0);
         let c1 = Vector3::<f32>::new(0.0, 1.0, 1.0);
         let s = 1.0 / (self.data.len() as f32);
-        let mut ma = 0.0;
+        // let mut ma = 0.0;
         return Lines::new(self.data.iter().enumerate().map(|p|
         {
             let v = p.0 as f32 * s;
             let c = c0.lerp(c1, v);
             let amp = p.1.norm();
-            if amp > ma { ma = amp; }
-            return [amp, c.x, c.y, c.z];
-        }).collect(), 1.0 / ma);
+            // if amp > ma { ma = amp; }
+            return [amp * s, c.x, c.y, c.z];
+        }).collect(), 1.0);
     }
     
     fn update(

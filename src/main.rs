@@ -5,11 +5,10 @@ mod spectrum_renderer;
 
 use std::f32::consts::TAU;
 
-use backend::{dft_analysis, next_power_of_2, RepeatUntil, WCache};
+use backend::{dft_analysis, WCache};
 use iced::{widget::{button, column, shader, slider, text}, Alignment, Element, Length, Padding};
-use num::{complex::Complex32, Complex};
+use num::complex::Complex32;
 use plot_element::{Plot, PlotData};
-use rustfft::Fft;
 use spectrum_element::Spectrum;
 
 pub const PLOTTER_SIZE: u32 = 200;
@@ -125,7 +124,7 @@ fn update(state: &mut State, message: Message)
         }
         Message::FillSine =>
         {
-            let step = TAU / (state.plot.points.len() as f32);
+            let step =  TAU / (state.plot.points.len() as f32);
             let mut t = 0.0f32;
             for v in state.plot.points.iter_mut()
             {

@@ -1,3 +1,5 @@
+use std::mem::swap;
+
 use num::{traits::{ConstOne, ConstZero, FloatConst}, Complex, Float};
 
 #[derive(Debug, Clone, Default)]
@@ -76,174 +78,191 @@ pub fn dft<T: Float + ConstOne + ConstZero + FloatConst>(
     {
         panic!("y must have a power of 2 length");
     }
-    dft_test(wn, y);
-    // fft_iterative_v3(wn, y);
+    // dft_test(wn, y);
+    fft_iterative_v2(wn, y, (usize::BITS - y.len().leading_zeros() - 1) as usize);
     // fft_recursive(wn, y, (usize::BITS - y.len().leading_zeros() - 1) as usize);
 }
 
 /// `y.len()`must be a power of 2
-pub fn fft_recursive<T: Float + ConstOne + ConstZero + FloatConst>(
-    wn: &WCache<T>, y: &mut [Complex<T>], p: usize)
-{
-    let n = y.len();
-    if n == 1 { return; }
-    let hn = n >> 1;
-    fft_recursive(wn, &mut y[0..hn], p - 1);
-    fft_recursive(wn, &mut y[hn..n], p - 1);
+// pub fn fft_recursive<T: Float + ConstOne + ConstZero + FloatConst>(
+//     wn: &WCache<T>, y: &mut [Complex<T>], p: usize)
+// {
+//     let n = y.len();
+//     if n == 1 { return; }
+//     let hn = n >> 1;
+//     fft_recursive(wn, &mut y[0..hn], p - 1);
+//     fft_recursive(wn, &mut y[hn..n], p - 1);
     
-    let w = wn.get_nth_roots(p);
+//     let w = wn.get_nth_roots(p);
     
-    for i in 0..hn
-    {
-        let i2 = i + hn;
-        let y0 = y[i];
-        let y1 = y[i2];
+//     for i in 0..hn
+//     {
+//         let i2 = i + hn;
+//         let y0 = y[i];
+//         let y1 = y[i2];
         
-        let w = w[i];
-        y[i] = y0 + (w * y1);
-        y[i2] = y0 - (w * y1);
-    }
-}
-/// `y.len()`must be a power of 2
-pub fn fft_recursive_v2<T: Float + ConstOne + ConstZero + FloatConst>(
-    wn: &WCache<T>, y: &mut [Complex<T>], p: usize)
-{
-    let n = y.len();
-    if n == 1 { return; }
-    let hn = n >> 1;
-    fft_recursive_v2(wn, &mut y[0..hn], p - 1);
-    fft_recursive_v2(wn, &mut y[hn..n], p - 1);
+//         let w = w[i];
+//         y[i] = y0 + (w * y1);
+//         y[i2] = y0 - (w * y1);
+//     }
+// }
+// /// `y.len()`must be a power of 2
+// pub fn fft_recursive_v2<T: Float + ConstOne + ConstZero + FloatConst>(
+//     wn: &WCache<T>, y: &mut [Complex<T>], p: usize)
+// {
+//     let n = y.len();
+//     if n == 1 { return; }
+//     let hn = n >> 1;
+//     fft_recursive_v2(wn, &mut y[0..hn], p - 1);
+//     fft_recursive_v2(wn, &mut y[hn..n], p - 1);
     
-    unsafe
-    {
-        let w = wn.get_nth_roots_unchecked(p);
+//     unsafe
+//     {
+//         let w = wn.get_nth_roots_unchecked(p);
         
-        for i in 0..hn
-        {
-            let i2 = i + hn;
-            let y0 = y.get_unchecked(i).clone();
-            let y1 = y.get_unchecked(i2).clone();
+//         for i in 0..hn
+//         {
+//             let i2 = i + hn;
+//             let y0 = y.get_unchecked(i).clone();
+//             let y1 = y.get_unchecked(i2).clone();
             
-            let w = w.get_unchecked(i);
-            let wy = w * y1;
-            *y.get_unchecked_mut(i) = y0 + wy;
-            *y.get_unchecked_mut(i2) = y0 - wy;
-        }
-    }
-}
+//             let w = w.get_unchecked(i);
+//             let wy = w * y1;
+//             *y.get_unchecked_mut(i) = y0 + wy;
+//             *y.get_unchecked_mut(i2) = y0 - wy;
+//         }
+//     }
+// }
 
-/// `y.len()`must be a power of 2
-pub fn fft_iterative<T: Float + ConstOne + ConstZero + FloatConst>(
-    wn: &WCache<T>, y: &mut [Complex<T>])
-{
-    let n = y.len();
-    let mut p = 1;
-    let mut s = 2;
-    let mut hs = 1;
-    while s <= n
-    {
-        let w = wn.get_nth_roots(p);
+// /// `y.len()`must be a power of 2
+// pub fn fft_iterative<T: Float + ConstOne + ConstZero + FloatConst>(
+//     wn: &WCache<T>, y: &mut [Complex<T>])
+// {
+//     let n = y.len();
+//     let mut p = 1;
+//     let mut s = 2;
+//     let mut hs = 1;
+//     while s <= n
+//     {
+//         let w = wn.get_nth_roots(p);
         
-        for i in (0..n).step_by(s)
-        {
-            for k in 0..hs
-            {
-                let j1 = k + i;
-                let j2 = j1 + hs;
-                let y0 = y[j1];
-                let y1 = y[j2];
+//         for i in (0..n).step_by(s)
+//         {
+//             for k in 0..hs
+//             {
+//                 let j1 = k + i;
+//                 let j2 = j1 + hs;
+//                 let y0 = y[j1];
+//                 let y1 = y[j2];
                 
-                let w = w[k];
-                y[j1] = y0 + (w * y1);
-                y[j2] = y0 - (w * y1);
-            }
-        }
+//                 let w = w[k];
+//                 y[j1] = y0 + (w * y1);
+//                 y[j2] = y0 - (w * y1);
+//             }
+//         }
         
-        hs = s;
-        s <<= 1;
-        p += 1;
-    }
-}
+//         hs = s;
+//         s <<= 1;
+//         p += 1;
+//     }
+// }
 
 /// `y.len()`must be a power of 2
 pub fn fft_iterative_v2<T: Float + ConstOne + ConstZero + FloatConst>(
-    wn: &WCache<T>, y: &mut [Complex<T>])
+    wn: &WCache<T>, y: &mut [Complex<T>], power: usize)
 {
     let n = y.len();
+    
+    let mut buffer = vec![Complex::<T>::ZERO; y.len()];
+    let mut din = y;
+    let mut dout: &mut [Complex<T>] = buffer.as_mut();
+    
+    let hn = n >> 1;
+    let mut hs = hn;
+    let mut hj = 1;
     let mut p = 1;
-    let mut s = 2;
-    let mut hs = 1;
-    while s <= n
+    let mut m = power;
+    while hs >= 1
     {
         unsafe
         {
             let w = wn.get_nth_roots_unchecked(p);
         
-            for i in (0..n).step_by(s)
+            for j in 0..hj
             {
-                for k in 0..hs
+                let w = w.get_unchecked(j);
+                let k = j << m;
+                let j = k >> 1;
+                for i in 0..hs
                 {
-                    let j1 = k + i;
+                    let j1 = i + k;
                     let j2 = j1 + hs;
-                    let y0 = y.get_unchecked(j1).clone();
-                    let y1 = y.get_unchecked(j2).clone();
+                    let y0 = din.get_unchecked(j1).clone();
+                    let y1 = din.get_unchecked(j2).clone();
                     
-                    let w = w.get_unchecked(k);
                     let wy = w * y1;
-                    *y.get_unchecked_mut(j1) = y0 + wy;
-                    *y.get_unchecked_mut(j2) = y0 - wy;
+                    let j3 = i + j;
+                    *dout.get_unchecked_mut(j3) = y0 + wy;
+                    *dout.get_unchecked_mut(j3 + hn) = y0 - wy;
                 }
             }
         }
         
-        hs = s;
-        s <<= 1;
+        hj <<= 1;
+        hs >>= 1;
         p += 1;
+        m -= 1;
+        swap(&mut din, &mut dout);
+    }
+    
+    if p % 2 == 0
+    {
+        dout.copy_from_slice(din);
     }
 }
 /// `y.len()`must be a power of 2
-pub fn fft_iterative_v3<T: Float + ConstOne + ConstZero + FloatConst>(
-    wn: &WCache<T>, y: &mut [Complex<T>])
-{
-    let n = y.len();
-    let mut old = 0;
-    let mut current = 2;
-    while current <= n
-    {
-        let x = current & (!old);
-        let mut hs = 1;
-        let mut s = 2;
-        let mut p = 1;
-        while s <= x
-        {
-            unsafe
-            {
-                let w = wn.get_nth_roots_unchecked(p);
+// pub fn fft_iterative_v3<T: Float + ConstOne + ConstZero + FloatConst>(
+//     wn: &WCache<T>, y: &mut [Complex<T>])
+// {
+//     let n = y.len();
+//     let mut old = 0;
+//     let mut current = 2;
+//     while current <= n
+//     {
+//         let x = current & (!old);
+//         let mut hs = 1;
+//         let mut s = 2;
+//         let mut p = 1;
+//         while s <= x
+//         {
+//             unsafe
+//             {
+//                 let w = wn.get_nth_roots_unchecked(p);
             
-                let i = current - s;
-                for k in 0..hs
-                {
-                    let j1 = k + i;
-                    let j2 = j1 + hs;
-                    let y0 = y.get_unchecked(j1).clone();
-                    let y1 = y.get_unchecked(j2).clone();
+//                 let i = current - s;
+//                 for k in 0..hs
+//                 {
+//                     let j1 = k + i;
+//                     let j2 = j1 + hs;
+//                     let y0 = y.get_unchecked(j1).clone();
+//                     let y1 = y.get_unchecked(j2).clone();
                     
-                    let w = w.get_unchecked(k);
-                    let wy = w * y1;
-                    *y.get_unchecked_mut(j1) = y0 + wy;
-                    *y.get_unchecked_mut(j2) = y0 - wy;
-                }
-            }
-            hs = s;
-            s <<= 1;
-            // s *= 2;
-            p += 1;
-        }
+//                     let w = w.get_unchecked(k);
+//                     let wy = w * y1;
+//                     *y.get_unchecked_mut(j1) = y0 + wy;
+//                     *y.get_unchecked_mut(j2) = y0 - wy;
+//                 }
+//             }
+//             hs = s;
+//             s <<= 1;
+//             // s *= 2;
+//             p += 1;
+//         }
         
-        old = current;
-        current += 2;
-    }
-}
+//         old = current;
+//         current += 2;
+//     }
+// }
 
 fn dft_test<T: Float + ConstOne + ConstZero + FloatConst>(
     wn: &WCache<T>, y: &mut [Complex<T>])

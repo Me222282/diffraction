@@ -26,7 +26,7 @@ fn rec_bench(b: &mut Bencher, data: &(&WCache<f32>, &[Complex<f32>], usize))
         let start = Instant::now();
         for _ in 0..iters
         {
-            fft_recursive(data.0, copy.as_mut_slice(), data.2);
+            // fft_recursive(data.0, copy.as_mut_slice(), data.2);
         }
         return start.elapsed();
     } )
@@ -40,7 +40,7 @@ fn it_bench(b: &mut Bencher, data: &(&WCache<f32>, &[Complex<f32>], usize))
         let start = Instant::now();
         for _ in 0..iters
         {
-            fft_iterative_v2(data.0, copy.as_mut_slice());
+            fft_iterative_v2(data.0, copy.as_mut_slice(), data.2);
         }
         return start.elapsed();
     } )
@@ -54,7 +54,7 @@ fn rec2_bench(b: &mut Bencher, data: &(&WCache<f32>, &[Complex<f32>], usize))
         let start = Instant::now();
         for _ in 0..iters
         {
-            fft_recursive_v2(data.0, copy.as_mut_slice(), data.2);
+            // fft_recursive_v2(data.0, copy.as_mut_slice(), data.2);
         }
         return start.elapsed();
     } )
@@ -68,7 +68,7 @@ fn it2_bench(b: &mut Bencher, data: &(&WCache<f32>, &[Complex<f32>], usize))
         let start = Instant::now();
         for _ in 0..iters
         {
-            fft_iterative_v3(data.0, copy.as_mut_slice());
+            // fft_iterative_v3(data.0, copy.as_mut_slice());
         }
         return start.elapsed();
     } )
