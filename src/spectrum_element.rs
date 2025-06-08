@@ -1,8 +1,8 @@
+use backend::wave_length_colour;
 use iced::widget::shader::{Event, Program};
 use iced::advanced::graphics::core::event::Status;
 use iced::Rectangle;
 use num::complex::Complex32;
-use zene_structs::{Vector3, Vector};
 
 use crate::spectrum_renderer::Lines;
 
@@ -31,18 +31,14 @@ impl<'a, Message> Program<Message> for Spectrum<'a>
         _cursor: iced::advanced::mouse::Cursor,
         _bounds: Rectangle) -> Self::Primitive
     {
-        let c0 = Vector3::<f32>::new(1.0, 1.0, 0.0);
-        let c1 = Vector3::<f32>::new(0.0, 1.0, 1.0);
-        let s = 1.0 / (self.data.len() as f32);
-        let s2 = self.scale * s;
-        // let mut ma = 0.0;
+        let s = self.scale / (self.data.len() as f32);
+        let t = 300.0 / (self.data.len() as f32);
         return Lines::new(self.data.iter().enumerate().map(|p|
         {
-            let v = p.0 as f32 * s;
-            let c = c0.lerp(c1, v);
+            let v = p.0 as f32 * t;
+            let c = wave_length_colour(700.0 - v, 0.8);
             let amp = p.1.norm();
-            // if amp > ma { ma = amp; }
-            return [amp * s2, c.x, c.y, c.z];
+            return [amp * s, c.x, c.y, c.z];
         }).collect());
     }
     
@@ -54,13 +50,6 @@ impl<'a, Message> Program<Message> for Spectrum<'a>
         _cursor: iced::advanced::mouse::Cursor,
         _shell: &mut iced::advanced::Shell<'_, Message>) -> (Status, Option<Message>)
     {
-        // let width = bounds.width as usize;
-        
-        // if self.data.len() != width
-        // {
-        //     shell.publish((self.on_size)(width));
-        // }
-        
         return (Status::Ignored, None);
     }
 }
