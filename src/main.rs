@@ -1,15 +1,15 @@
 mod plot_element;
-mod spectrum_element;
 mod line_renderer;
+mod wave_data;
 
-use std::f32::consts::TAU;
+use std::f32::consts::{PI, TAU};
 
-use backend::{dft_analysis, form_plot, WCache};
-use iced::{widget::{button, column, row, shader, slider, text}, Alignment, Element, Length, Padding};
-use num::{complex::Complex32, NumCast};
-use plot_element::{Plot, PlotData};
-use spectrum_element::Spectrum;
-use zene_structs::{ConstOne, NumOps};
+use backend::WCache;
+use iced::{widget::{button, column, row, slider, text}, Alignment, Element, Length, Padding};
+use num::{complex::Complex32, Zero};
+use plot_element::plotter;
+use wave_data::WaveData;
+use zene_structs::Vector4;
 
 pub const PLOTTER_SIZE: u32 = 200;
 pub const SPECTRUM_SIZE: u32 = 256;
@@ -19,10 +19,13 @@ enum Message
 {
     SetScale(f32),
     PlotSize(usize),
-    PlotPoint(usize, f32),
-    PlotLine(usize, f32),
-    PlotFreq(f32, f32),
-    DragFreq(f32, f32),
+    PlotWave(usize, f32),
+    DragWave(usize, f32),
+    PlotFreq(usize, f32),
+    DragFreq(usize, f32),
+    PlotPhase(usize, f32),
+    DragPhase(usize, f32),
+    
     FillSine,
     FillTriangle,
     FillSaw,
@@ -33,9 +36,7 @@ enum Message
 #[derive(Debug, Clone)]
 struct State
 {
-    spec_scale: f32,
-    plot: PlotData,
-    spectrum: Vec<Complex32>,
+    plot: WaveData,
     wn: WCache<f32>,
     wn_back: WCache<f32>,
     last_point: (usize, f32)
@@ -44,81 +45,15 @@ impl Default for State
 {
     fn default() -> Self
     {
+        let mut plot = WaveData::default();
+        plot.set_scale(1.0);
+        
         return Self {
-            spec_scale: 1.0,
-            plot: Default::default(),
-            spectrum: Default::default(),
+            plot,
             wn: WCache::<f32>::new(true),
             wn_back: WCache::<f32>::new(false),
             last_point: Default::default()
         }
-    }
-}
-
-fn update_spectrum(state: &mut State)
-{
-    let len = state.plot.points.len();
-    if len == 0 { return; }
-    
-    state.spectrum = dft_analysis(&mut state.wn, &state.plot.points);
-}
-fn update_plot(state: &mut State)
-{
-    let len = state.plot.points.len();
-    if len == 0 { return; }
-    
-    let plot = form_plot(&mut state.wn_back, &state.spectrum, state.plot.points.len());
-    state.plot.points = plot.iter().map(|c| c.re).collect();
-}
-
-fn lerp_index(vec: &Vec<f32>, i: f32) -> f32
-{
-    let ld = i.floor();
-    let l = ld as usize;
-    let u = i.ceil() as usize;
-    
-    if u >= vec.len()
-    {
-        return vec[l];
-    }
-    let i = i - ld;
-    
-    let a = vec[l];
-    let b = vec[u];
-    return ((b - a) * i) + a;
-}
-fn remap(a: &Vec<f32>, b: &mut Vec<f32>)
-{
-    let al = a.len();
-    // no data to remap
-    if al == 0 { return; }
-    
-    let step = (al as f32) / (b.len() as f32);
-    
-    let mut fi = 0.0;
-    for v in b.iter_mut()
-    {
-        *v = lerp_index(a, fi);
-        fi += step;
-    }
-}
-fn fill<F>(plot: &mut [F], start: (usize, F), end: (usize, F))
-    where F: NumOps + ConstOne + NumCast + Copy
-{
-    if start.0 > end.0
-    {
-        fill(plot, end, start);
-        return;
-    }
-    
-    let diff = end.1 - start.1;
-    let scale = F::ONE / F::from(1 + end.0 - start.0).unwrap();
-    
-    // first is already done
-    for p in plot[start.0..=end.0].iter_mut().enumerate().skip(1)
-    {
-        let v = scale * F::from(p.0).unwrap();
-        *p.1 = start.1 + (diff * v);
     }
 }
 
@@ -139,103 +74,105 @@ fn update(state: &mut State, message: Message)
 {
     match message
     {
-        Message::SetScale(v) => state.spec_scale = v,
+        Message::SetScale(v) => state.plot.set_scale(v),
         Message::PlotSize(size) =>
         {
-            let mut new = vec![0.0; size];
-        
-            remap(&state.plot.points, &mut new);
-        
-            state.plot.points = new;
-            update_spectrum(state);
+            state.plot.resize(size);
+            state.plot.compute_dft(&mut state.wn);
         },
-        Message::PlotPoint(i, v) =>
+        Message::PlotWave(i, v) =>
         {
-            state.plot.points[i] = v;
+            state.plot.set_plot_point(i, v);
+            state.plot.compute_dft(&mut state.wn);
             state.last_point = (i, v);
-            update_spectrum(state);
         },
-        Message::PlotLine(i, v) =>
+        Message::DragWave(i, v) =>
         {
-            fill(&mut state.plot.points, state.last_point, (i, v));
+            state.plot.set_plot_line(state.last_point, (i, v));
+            state.plot.compute_dft(&mut state.wn);
             state.last_point = (i, v);
-            update_spectrum(state);
-        }
+        },
+        Message::PlotFreq(i, v) =>
+        {
+            state.plot.set_spec_point(i, v);
+            state.plot.compute_plot(&mut state.wn_back);
+            state.last_point = (i, v);
+        },
+        Message::DragFreq(i, v) =>
+        {
+            state.plot.set_spec_line(state.last_point, (i, v));
+            state.plot.compute_plot(&mut state.wn_back);
+            state.last_point = (i, v);
+        },
+        Message::PlotPhase(i, v) =>
+        {
+            state.plot.set_phase_point(i, v);
+            state.plot.compute_plot(&mut state.wn_back);
+            state.last_point = (i, v);
+        },
+        Message::DragPhase(i, v) =>
+        {
+            state.plot.set_phase_line(state.last_point, (i, v));
+            state.plot.compute_plot(&mut state.wn_back);
+            state.last_point = (i, v);
+        },
+        Message::Clear =>
+        {
+            state.plot.wave.fill(0.0);
+            state.plot.dft.fill(Complex32::ZERO);
+            state.plot.update_spec_phase();
+        },
         Message::FillSine =>
         {
-            let step =  TAU / (state.plot.points.len() as f32);
+            let step =  TAU / (state.plot.wave.len() as f32);
             let mut t = 0.0f32;
-            for v in state.plot.points.iter_mut()
+            for v in state.plot.wave.iter_mut()
             {
                 *v = t.sin();
                 t += step;
             }
-            update_spectrum(state);
+            state.plot.compute_dft(&mut state.wn);
         },
         Message::FillTriangle =>
         {
-            let step =  1.0 / (state.plot.points.len() as f32);
+            let step =  1.0 / (state.plot.wave.len() as f32);
             let mut t = 0.0f32;
-            for v in state.plot.points.iter_mut()
+            for v in state.plot.wave.iter_mut()
             {
                 *v = tri(t);
                 t += step;
             }
-            update_spectrum(state);
+            state.plot.compute_dft(&mut state.wn);
         },
         Message::FillSaw =>
         {
-            let step =  1.0 / (state.plot.points.len() as f32);
+            let step =  1.0 / (state.plot.wave.len() as f32);
             let mut t = 0.0f32;
-            for v in state.plot.points.iter_mut()
+            for v in state.plot.wave.iter_mut()
             {
                 *v = saw(1.0 - t);
                 t += step;
             }
-            update_spectrum(state);
+            state.plot.compute_dft(&mut state.wn);
         },
         Message::FillSquare =>
         {
-            let step =  1.0 / (state.plot.points.len() as f32);
+            let step =  1.0 / (state.plot.wave.len() as f32);
             let mut t = 0.0f32;
-            for v in state.plot.points.iter_mut()
+            for v in state.plot.wave.iter_mut()
             {
                 *v = square(1.0 - t);
                 t += step;
             }
-            update_spectrum(state);
-        },
-        Message::PlotFreq(x, v) =>
-        {
-            let lf = state.spectrum.len() as f32;
-            let v = v * lf / state.spec_scale;
-            let i = (x * (lf - 2.0)) as usize + 1;
-            state.spectrum[i] = Complex32::new(v, 0.0);
-            state.last_point = (i, v);
-            update_plot(state);
-        },
-        Message::DragFreq(x, v) =>
-        {
-            let lf = state.spectrum.len() as f32;
-            let v = v * lf / state.spec_scale;
-            let i = (x * (lf - 2.0)) as usize + 1;
-            fill(&mut state.spectrum,
-                (state.last_point.0, Complex32::new(state.last_point.1, 0.0)),
-                (i, Complex32::new(v, 0.0)));
-            state.last_point = (i, v);
-            update_plot(state);
+            state.plot.compute_dft(&mut state.wn);
         }
-        Message::Clear =>
-        {
-            state.plot.points.fill(0.0);
-            state.spectrum.fill(Complex32::ZERO);
-        },
     }
 }
 
 fn view(state: &State) -> Element<Message>
 {
-    let spec_size = state.spectrum.len().min(SPECTRUM_SIZE as usize);
+    let spec_scale = state.plot.get_scale();
+    let plot = &state.plot;
     column![
         row![
             button("Sine").on_press(Message::FillSine),
@@ -246,13 +183,22 @@ fn view(state: &State) -> Element<Message>
         ].spacing(10)
             .align_y(Alignment::Center)
             .padding(Padding::new(5.0)),
-        shader(Plot::new(Message::PlotSize, Message::PlotPoint, Message::PlotLine, &state.plot))
+            
+        plotter::<_, _, _, _, _, 0>(Some(Message::PlotSize), Message::PlotWave, Message::DragWave,
+            &plot.wave, -1.0..1.0, Vector4::new(1.0, 0.0, 0.0, 1.0))
             .width(Length::Fixed(PLOTTER_SIZE as f32)),
-        shader(Spectrum::new(Message::PlotFreq, Message::DragFreq, &state.spectrum[0..spec_size], state.spec_scale))
+            
+        plotter::<fn(usize) -> Message, _, _, _, _, 1>(None, Message::PlotFreq, Message::DragFreq,
+            &plot.spectrum, 0.0..1.0, Vector4::zero())
             .width(Length::Fixed(SPECTRUM_SIZE as f32)),
-        slider(1.0..=5.0, state.spec_scale, Message::SetScale).step(0.01)
+            
+        slider(1.0..=5.0, spec_scale, Message::SetScale).step(0.01)
             .width(Length::Fixed(SPECTRUM_SIZE as f32)),
-        text(format!("Spectrum Scale: {:.2}", state.spec_scale))
+        text(format!("Spectrum Scale: {spec_scale:.2}")),
+        
+        plotter::<fn(usize) -> Message, _, _, _, _, 1>(None, Message::PlotPhase, Message::DragPhase,
+            &plot.phase, -PI..PI, Vector4::new(0.0, 1.0, 1.0, 1.0))
+            .width(Length::Fixed(SPECTRUM_SIZE as f32))
     ]
     .spacing(10)
     .align_x(Alignment::Center)

@@ -1,59 +1,64 @@
+use std::ops::Range;
+use std::fmt::Debug;
+
+use bytemuck::NoUninit;
 use iced::mouse::Button;
-use iced::widget::shader::{Event, Program};
+use iced::widget::{shader::{Event, Program}, shader};
 use iced::advanced::graphics::core::event::Status;
+use iced::widget::Shader;
 use iced::{Point, Rectangle};
-use zene_structs::{Vector3, Vector4};
+use zene_structs::Vector4;
 
-use crate::line_renderer::Lines;
+use crate::line_renderer::{Lines, TextureData};
 
-#[derive(Debug, Clone, Default)]
-pub struct PlotData
-{
-    pub points: Vec<f32>
-}
-
-#[derive(Default)]
-pub struct PlotState
-{
-    mouse_hold: bool
-}
-
-pub struct Plot<'a, S, F, G, Message>
+pub fn plotter<'a, S, F, G, D: TextureData, Message, const ID: usize>(on_size: Option<S>, on_place: F,
+    on_drag: G, data: &'a [D], data_range: Range<f32>, colour: Vector4<f32>) -> Shader<Message, Plot<'a, S, F, G, D, Message, ID>>
     where S: Fn(usize) -> Message,
         F: Fn(usize, f32) -> Message,
-        G: Fn(usize, f32) -> Message
+        G: Fn(usize, f32) -> Message,
+        D: Debug + Send + Sync + NoUninit + 'static
 {
-    on_size: S,
-    on_place: F,
-    on_drag: G,
-    data: &'a PlotData,
-    colour: Vector3<f32>
-}
-
-impl<'a, S, F, G, Message> Plot<'a, S, F, G, Message>
-    where S: Fn(usize) -> Message,
-        F: Fn(usize, f32) -> Message,
-        G: Fn(usize, f32) -> Message
-{
-    pub fn new(on_size: S, on_place: F, on_drag: G, data: &'a PlotData) -> Self
-    {
-        return Self {
+    let s = 1.0 / (data_range.end - data_range.start);
+    let off = -data_range.start * s;
+    let top = (data_range.end * s) + off;
+    
+    return shader(
+        Plot {
+            colour,
             on_size,
             on_place,
             on_drag,
             data,
-            colour: Vector3::new(1.0, 0.0, 0.0)
-        };
-    }
+            scale: s,
+            uv_scale: top,
+            uv_offset: off
+        }
+    );
 }
 
-impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
+pub struct Plot<'a, S, F, G, D: TextureData, Message, const ID: usize>
     where S: Fn(usize) -> Message,
         F: Fn(usize, f32) -> Message,
         G: Fn(usize, f32) -> Message
 {
-    type State = PlotState;
-    type Primitive = Lines<f32, 0>;
+    colour: Vector4<f32>,
+    on_size: Option<S>,
+    on_place: F,
+    on_drag: G,
+    data: &'a [D],
+    scale: f32,
+    uv_scale: f32,
+    uv_offset: f32
+}
+
+impl<'a, S, F, G, D: TextureData, Message, const ID: usize> Program<Message> for Plot<'a, S, F, G, D, Message, ID>
+    where S: Fn(usize) -> Message,
+        F: Fn(usize, f32) -> Message,
+        G: Fn(usize, f32) -> Message,
+        D: Debug + Send + Sync + NoUninit + 'static
+{
+    type State = bool;
+    type Primitive = Lines<D, ID>;
 
     fn draw(
         &self,
@@ -62,9 +67,8 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
         _bounds: Rectangle) -> Self::Primitive
     {
         return Lines::new(
-            self.data.points.clone(),
-            Vector4::new(self.colour.x, self.colour.y, self.colour.z, 1.0),
-            Vector4::new(0.0, 0.0, 0.0, 1.0), 0.5, 1.0, 0.5);
+            self.data.to_vec(), self.colour,
+            Vector4::new(0.0, 0.0, 0.0, 1.0), self.scale, self.uv_scale, self.uv_offset);
     }
     
     fn update(
@@ -77,44 +81,45 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
     {
         let width = bounds.width as usize;
         
-        if self.data.points.len() != width
+        if self.data.len() != width && self.on_size.is_some()
         {
-            shell.publish((self.on_size)(width));
+            let f = self.on_size.as_ref().unwrap();
+            shell.publish(f(width));
         }
         
-        let hh = bounds.height * 0.5;
+        let hh = bounds.height;
         match event
         {
             Event::Mouse(iced::mouse::Event::ButtonPressed(Button::Left)) =>
             {
                 if let Some(cursor_position) = cursor.position_over(bounds)
                 {
-                    state.mouse_hold = true;
+                    *state = true;
                     let p = cursor_position - bounds.position();
-                    let v = (bounds.height - p.y) / hh;
+                    let v = ((hh - p.y) * self.uv_scale / hh - self.uv_offset) / self.scale;
                     let x = p.x as usize;
                     
-                    return (Status::Captured, Some((self.on_place)(x, v - 1.0)));
+                    return (Status::Captured, Some((self.on_place)(x, v)));
                 }
             },
             Event::Mouse(iced::mouse::Event::ButtonReleased(Button::Left)) =>
             {
-                if state.mouse_hold
+                if *state
                 {
-                    state.mouse_hold = false;
+                    *state = false;
                     return (Status::Captured, None);
                 }
             },
             Event::Mouse(iced::mouse::Event::CursorMoved { position }) =>
             {
-                if state.mouse_hold
+                if *state
                 {
                     let p = position - bounds.position();
                     let p = Point::new(p.x.clamp(0.0, bounds.width - 1.0), p.y.clamp(0.0, bounds.height));
-                    let v = (bounds.height - p.y) / hh;
+                    let v = ((hh - p.y) * self.uv_scale / hh - self.uv_offset) / self.scale;
                     let x = p.x as usize;
                     
-                    return (Status::Captured, Some((self.on_drag)(x, v - 1.0)));
+                    return (Status::Captured, Some((self.on_drag)(x, v)));
                 }
             },
             _ => {}
@@ -131,7 +136,7 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
     {
         let is_mouse_over = cursor.is_over(bounds);
         
-        if state.mouse_hold
+        if *state
         {
             iced::advanced::mouse::Interaction::Pointer
         }
