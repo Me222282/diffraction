@@ -5,7 +5,7 @@ mod wave_data;
 use std::f32::consts::{PI, TAU};
 
 use backend::WCache;
-use iced::{widget::{button, column, row, slider, text}, Alignment, Element, Length, Padding};
+use iced::{widget::{button, column, row, slider, text, toggler}, Alignment, Element, Length, Padding};
 use num::{complex::Complex32, Zero};
 use plot_element::plotter;
 use wave_data::WaveData;
@@ -26,6 +26,7 @@ enum Message
     PlotPhase(usize, f32),
     DragPhase(usize, f32),
     
+    ViewPhase(bool),
     FillSine,
     FillTriangle,
     FillSaw,
@@ -39,7 +40,8 @@ struct State
     plot: WaveData,
     wn: WCache<f32>,
     wn_back: WCache<f32>,
-    last_point: (usize, f32)
+    last_point: (usize, f32),
+    view_phase: bool
 }
 impl Default for State
 {
@@ -49,6 +51,7 @@ impl Default for State
         plot.set_scale(1.0);
         
         return Self {
+            view_phase: false,
             plot,
             wn: WCache::<f32>::new(true),
             wn_back: WCache::<f32>::new(false),
@@ -75,6 +78,7 @@ fn update(state: &mut State, message: Message)
     match message
     {
         Message::SetScale(v) => state.plot.set_scale(v),
+        Message::ViewPhase(v) => state.view_phase = v,
         Message::PlotSize(size) =>
         {
             state.plot.resize(size);
@@ -173,13 +177,16 @@ fn view(state: &State) -> Element<Message>
 {
     let spec_scale = state.plot.get_scale();
     let plot = &state.plot;
-    column![
+    let mut view = column![
         row![
             button("Sine").on_press(Message::FillSine),
             button("Triangle").on_press(Message::FillTriangle),
             button("Saw").on_press(Message::FillSaw),
             button("Square").on_press(Message::FillSquare),
-            button("Clear").on_press(Message::Clear)
+            button("Clear").on_press(Message::Clear),
+            toggler(state.view_phase)
+                .label("Phase")
+                .on_toggle(Message::ViewPhase)
         ].spacing(10)
             .align_y(Alignment::Center)
             .padding(Padding::new(5.0)),
@@ -194,16 +201,20 @@ fn view(state: &State) -> Element<Message>
             
         slider(1.0..=5.0, spec_scale, Message::SetScale).step(0.01)
             .width(Length::Fixed(SPECTRUM_SIZE as f32)),
-        text(format!("Spectrum Scale: {spec_scale:.2}")),
-        
-        plotter::<fn(usize) -> Message, _, _, _, _, 1>(None, Message::PlotPhase, Message::DragPhase,
-            &plot.phase, -PI..PI, Vector4::new(0.0, 1.0, 1.0, 1.0))
-            .width(Length::Fixed(SPECTRUM_SIZE as f32))
-    ]
-    .spacing(10)
+        text(format!("Spectrum Scale: {spec_scale:.2}"))
+    ].spacing(10)
     .align_x(Alignment::Center)
-    .padding(Padding::new(5.0))
-    .into()
+    .padding(Padding::new(5.0));
+    
+    if state.view_phase
+    {
+        view = view.push(
+            plotter::<fn(usize) -> Message, _, _, _, _, 1>(None, Message::PlotPhase, Message::DragPhase,
+                &plot.phase, -PI..PI, Vector4::new(0.0, 1.0, 1.0, 1.0))
+                .width(Length::Fixed(SPECTRUM_SIZE as f32)));
+    }
+    
+    return view.into();
 }
 
 fn main() {
