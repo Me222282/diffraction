@@ -1,3 +1,7 @@
+use std::fmt::Debug;
+use std::marker::PhantomData;
+
+use bytemuck::NoUninit;
 use iced::widget::shader::wgpu::util::{BufferInitDescriptor, DeviceExt};
 use iced::widget::shader::wgpu::*;
 use iced::widget::shader::Primitive;
@@ -7,21 +11,48 @@ use zene_structs::{Vector2, Vector4};
 
 use crate::SPECTRUM_SIZE;
 
-#[derive(Debug)]
-pub struct Lines
+pub trait TextureData
 {
-    data: Vec<[f32; 4]>
+    const FORMAT: TextureFormat;
+}
+impl TextureData for f32
+{
+    const FORMAT: TextureFormat = TextureFormat::R32Float;
+}
+impl TextureData for [f32; 4]
+{
+    const FORMAT: TextureFormat = TextureFormat::Rgba32Float;
 }
 
-impl Lines
+#[derive(Debug)]
+pub struct Lines<D: TextureData, const ID: usize>
 {
-    pub fn new(data: Vec<[f32; 4]>) -> Self
+    data: Vec<D>,
+    foreground: Vector4<f32>,
+    background: Vector4<f32>,
+    scale: f32,
+    uv_scale: f32,
+    uv_offset: f32
+}
+
+impl<D: TextureData, const ID: usize> Lines<D, ID>
+{
+    pub fn new(data: Vec<D>, foreground: Vector4<f32>,
+        background: Vector4<f32>, scale: f32, uv_scale: f32, uv_offset: f32) -> Self
     {
-        return Self { data };
+        return Self {
+            data,
+            foreground,
+            background,
+            scale,
+            uv_scale,
+            uv_offset
+        };
     }
 }
 
-impl Primitive for Lines
+impl<D: TextureData, const ID: usize> Primitive for Lines<D, ID>
+    where D: Debug + Send + Sync + NoUninit + 'static
 {
     fn prepare(
         &self,
@@ -33,24 +64,27 @@ impl Primitive for Lines
         bounds: &Rectangle,
         _viewport: &iced::widget::shader::Viewport)
     {
-        let pipe = storage.get_mut::<LinePipe>();
+        let pipe = storage.get_mut::<LinePipe<D, ID>>();
         let pipe = match pipe
         {
             Some(lp) => lp,
             None =>
             {
-                let lp = LinePipe::new(device, format);
+                let lp = LinePipe::<D, ID>::new(device, format);
                 storage.store(lp);
-                storage.get_mut::<LinePipe>().unwrap()
+                storage.get_mut::<LinePipe<D, ID>>().unwrap()
             },
         };
         
         let size = self.data.len() as u32;
         
+        let bh = bounds.height;
         let uni_dat = Uniform {
-            foreground: Vector4::zero(),
-            background: Vector4::new(0.0, 0.0, 0.0, 1.0),
-            h_size: Vector2::new(size as f32, bounds.height)
+            foreground: self.foreground,
+            background: self.background,
+            h_size: Vector2::new(size as f32, bh * self.scale),
+            // _pad: [0.0, 0.0],
+            uv_trans: Vector2::new(self.uv_scale * bh, self.uv_offset * bh),
         };
         queue.write_buffer(&pipe.uniform_buffer, 0,
             bytemuck::cast_slice(&[uni_dat]));
@@ -68,7 +102,7 @@ impl Primitive for Lines
             // The layout of the texture
             ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(4 * 4 * size),
+                bytes_per_row: Some(size_of::<D>() as u32 * size),
                 rows_per_image: None,
             },
             Extent3d { width: size, height: 1, depth_or_array_layers: 1 });
@@ -83,7 +117,7 @@ impl Primitive for Lines
         target: &iced::widget::shader::wgpu::TextureView,
         clip_bounds: &Rectangle<u32>)
     {
-        let pipe = storage.get::<LinePipe>();
+        let pipe = storage.get::<LinePipe<D, ID>>();
         match pipe
         {
             Some(pipe) =>
@@ -126,7 +160,9 @@ struct Uniform
 {
     foreground: Vector4<f32>,
     background: Vector4<f32>,
-    h_size: Vector2<f32>
+    h_size: Vector2<f32>,
+    // _pad: [f32; 2],
+    uv_trans: Vector2<f32>
 }
 unsafe impl bytemuck::Pod for Uniform {}
 unsafe impl bytemuck::Zeroable for Uniform {}
@@ -137,25 +173,28 @@ impl Default for Uniform
         Self {
             foreground: Vector4::zero(),
             background: Vector4::zero(),
-            h_size: Vector2::zero()
+            h_size: Vector2::zero(),
+            // _pad: [0.0, 0.0],
+            uv_trans: Vector2::zero()
         }
     }
 }
 
-struct LinePipe
+struct LinePipe<D: TextureData, const ID: usize>
 {
     render_pipeline: RenderPipeline,
     vertex_buffer: Buffer,
     uniform_buffer: Buffer,
     sample_texture: Texture,
-    bind_group: BindGroup
+    bind_group: BindGroup,
+    _phan: PhantomData<D>
 }
 
-impl LinePipe
+impl<D: TextureData, const ID: usize> LinePipe<D, ID>
 {
     pub fn new(
         device: &iced::widget::shader::wgpu::Device,
-        format: iced::widget::shader::wgpu::TextureFormat) -> LinePipe
+        format: iced::widget::shader::wgpu::TextureFormat) -> Self
     {
         let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("lines.uniform"),
@@ -173,7 +212,7 @@ impl LinePipe
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: TextureDimension::D1,
-                format: TextureFormat::Rgba32Float,
+                format: D::FORMAT,
                 usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
                 label: Some("lines.samples"),
                 view_formats: &[]
@@ -307,7 +346,8 @@ impl LinePipe
             vertex_buffer,
             uniform_buffer,
             sample_texture,
-            bind_group
+            bind_group,
+            _phan: PhantomData::default()
         };
     }
 }

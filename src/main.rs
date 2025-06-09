@@ -1,7 +1,6 @@
 mod plot_element;
 mod spectrum_element;
-mod plot_renderer;
-mod spectrum_renderer;
+mod line_renderer;
 
 use std::f32::consts::TAU;
 

@@ -4,7 +4,7 @@ use iced::advanced::graphics::core::event::Status;
 use iced::{Point, Rectangle};
 use zene_structs::{Vector3, Vector4};
 
-use crate::plot_renderer::Lines;
+use crate::line_renderer::Lines;
 
 #[derive(Debug, Clone, Default)]
 pub struct PlotData
@@ -53,7 +53,7 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
         G: Fn(usize, f32) -> Message
 {
     type State = PlotState;
-    type Primitive = Lines;
+    type Primitive = Lines<f32, 0>;
 
     fn draw(
         &self,
@@ -61,7 +61,10 @@ impl<'a, S, F, G, Message> Program<Message> for Plot<'a, S, F, G, Message>
         _cursor: iced::advanced::mouse::Cursor,
         _bounds: Rectangle) -> Self::Primitive
     {
-        return Lines::new(Vector4::new(self.colour.x, self.colour.y, self.colour.z, 1.0), self.data.points.clone());
+        return Lines::new(
+            self.data.points.clone(),
+            Vector4::new(self.colour.x, self.colour.y, self.colour.z, 1.0),
+            Vector4::new(0.0, 0.0, 0.0, 1.0), 0.5, 1.0, 0.5);
     }
     
     fn update(

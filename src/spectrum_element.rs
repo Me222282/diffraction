@@ -4,8 +4,10 @@ use iced::widget::shader::{Event, Program};
 use iced::advanced::graphics::core::event::Status;
 use iced::{Point, Rectangle};
 use num::complex::Complex32;
+use num::Zero;
+use zene_structs::Vector4;
 
-use crate::spectrum_renderer::Lines;
+use crate::line_renderer::Lines;
 
 pub struct Spectrum<'a, F, G, Message>
     where F: Fn(f32, f32) -> Message,
@@ -37,7 +39,7 @@ impl<'a, F, G, Message> Program<Message> for Spectrum<'a, F, G, Message>
         G: Fn(f32, f32) -> Message
 {
     type State = bool;
-    type Primitive = Lines;
+    type Primitive = Lines<[f32; 4], 1>;
 
     fn draw(
         &self,
@@ -48,12 +50,14 @@ impl<'a, F, G, Message> Program<Message> for Spectrum<'a, F, G, Message>
         let s = self.scale / (self.data.len() as f32);
         let t = 300.0 / (self.data.len() as f32);
         return Lines::new(self.data.iter().skip(1).enumerate().map(|p|
-        {
-            let v = p.0 as f32 * t;
-            let c = wave_length_colour(700.0 - v, 0.8);
-            let amp = p.1.norm();
-            return [amp * s, c.x, c.y, c.z];
-        }).collect());
+            {
+                let v = p.0 as f32 * t;
+                let c = wave_length_colour(700.0 - v, 0.8);
+                let amp = p.1.norm();
+                return [amp * s, c.x, c.y, c.z];
+            }).collect(),
+            Vector4::zero(), Vector4::new(0.0, 0.0, 0.0, 1.0),
+            1.0, 1.0, 0.0);
     }
     
     fn update(

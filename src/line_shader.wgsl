@@ -3,7 +3,9 @@ struct Globals
     foreground: vec4<f32>,
     background: vec4<f32>,
     // half on height, full on width
-    h_size: vec2<f32>
+    h_size: vec2<f32>,
+    // scale x, offset y
+    in_trans: vec2<f32>
 };
 
 struct VertexIn
@@ -30,7 +32,9 @@ fn vs_main(@builtin(vertex_index) i: u32, in: VertexIn) -> VertexOut
 {
     var out: VertexOut;
     out.pos = vec4<f32>(in.position, 0.0, 1.0);
-    out.sample = vec2<f32>(in.uv.x * (uniform_data.h_size.x - 1.0), in.uv.y * uniform_data.h_size.y);
+    out.sample = vec2<f32>(
+        in.uv.x * (uniform_data.h_size.x - 1.0),
+        in.uv.y * uniform_data.in_trans.x - uniform_data.in_trans.y);
     return out;
 }
 
