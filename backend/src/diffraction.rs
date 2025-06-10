@@ -1,6 +1,8 @@
 use num::{traits::{ConstOne, ConstZero, FloatConst}, Complex, Float};
 use zene_structs::{Vector2, Vector};
 
+use crate::LambdaZip;
+
 // pub const C: f64 = 299_792_458.0;
 
 pub struct Wave<T: Float>
@@ -23,11 +25,10 @@ impl<T: Float> Wave<T>
         {
             return Complex::new(T::ONE, T::ZERO);
         }
-        let b = beta_lambda * self.lambda;
+        let beta = beta_lambda * self.lambda;
         
-        let sc = b.sin_cos();
-        
-        let sri = (sc.0 / b).abs();
+        let sc = beta.sin_cos();
+        let sri = (sc.0 / beta).abs();
         return Complex::new(sri * sc.1, sri * sc.0);
     }
 }
@@ -79,7 +80,7 @@ impl<'a, T: Float> Slit<'a, T>
         return Some(T::PI() * self.width * sin);
     }
     
-    pub fn calculate_intensity(&self, x: Vector2<T>, result: &mut [Complex<T>])
+    pub fn calculate_intensity(&self, x: Vector2<T>, result: &mut [(T, Complex<T>)])
         where T: ConstOne + ConstZero + FloatConst
     {
         let bl_o = self.beta_lambda(x);
@@ -87,7 +88,7 @@ impl<'a, T: Float> Slit<'a, T>
         {
             Some(bl) =>
             {
-                for (res, wave) in result.iter_mut().zip(self.waves)
+                for (res, wave) in LambdaZip::new(result.iter_mut(), self.waves.iter())
                 {
                     *res = *res + wave.diffract(bl);
                 }

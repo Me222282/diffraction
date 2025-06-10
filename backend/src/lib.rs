@@ -7,11 +7,17 @@ pub use crate::diffraction::*;
 mod repeat_until;
 pub use crate::repeat_until::*;
 
+mod lambda_zip;
+pub use crate::lambda_zip::*;
+
+mod em_env;
+pub use crate::em_env::*;
+
 use num::Complex;
 use num::Float;
-use zene_structs::ConstOne;
-use zene_structs::ConstZero;
-use zene_structs::FloatConst;
+use num::traits::ConstOne;
+use num::traits::ConstZero;
+use num::traits::FloatConst;
 use zene_structs::Vector3;
 
 pub fn get_waves<T: Float + From<usize>>(dft: &[Complex<T>], dt: T, speed: T) -> Box<[Wave<T>]>
