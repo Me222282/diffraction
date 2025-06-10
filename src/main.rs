@@ -78,7 +78,11 @@ fn update(state: &mut State, message: Message)
     match message
     {
         Message::SetScale(v) => state.plot.set_scale(v),
-        Message::ViewPhase(v) => state.view_phase = v,
+        Message::ViewPhase(v) =>
+        {
+            state.view_phase = v;
+            state.plot.set_phase(v);
+        }
         Message::PlotSize(size) =>
         {
             state.plot.resize(size);

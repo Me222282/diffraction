@@ -21,9 +21,8 @@ pub fn fill_format<'a, I: 'a, F, G: 'a, W>(plot: &'a mut I, start: (usize, F), e
 
     let diff = end.1 - start.1;
     let scale = F::ONE / F::from(1 + end.0 - start.0).unwrap();
-
-    // first is already done
-    for p in plot.into_iter().skip(start.0 + 1).take(end.0 - start.0).enumerate()
+    
+    for p in plot.into_iter().skip(start.0).take(end.0 - start.0 + 1).enumerate()
     {
         let v = scale * F::from(p.0).unwrap();
         write(p.1, start.1 + (diff * v));
@@ -69,7 +68,8 @@ pub struct WaveData
     pub spectrum: Vec<[f32; 4]>,
     pub phase: Vec<f32>,
     pub dft: Vec<Complex32>,
-    scale: f32
+    scale: f32,
+    use_phase: bool
 }
 
 impl WaveData
@@ -125,6 +125,10 @@ impl WaveData
     {
         return self.scale;
     }
+    pub fn set_phase(&mut self, phase: bool)
+    {
+        self.use_phase = phase;
+    }
     
     pub fn set_plot_point(&mut self, index: usize, value: f32)
     {
@@ -138,6 +142,12 @@ impl WaveData
     {
         let old = self.spectrum[index][0];
         self.spectrum[index][0] = value;
+        
+        if !self.use_phase
+        {
+            self.dft[index + 1] = Complex32::new(value * (self.dft.len() as f32) / self.scale, 0.0);
+            return;
+        }
         
         if old == 0.0
         {
@@ -156,23 +166,27 @@ impl WaveData
         let s = (self.dft.len() as f32) / self.scale;
         
         let mut iter = self.spectrum.iter_mut().zip(&self.phase).zip(self.dft.iter_mut().skip(1));
-        fill_format(&mut iter, start, end, |o, new|
+        if self.use_phase
         {
-            let old = o.0.0[0];
-            o.0.0[0] = new;
-            // compute new complex value
-            match old
+            fill_format(&mut iter, start, end, |out, amp|
             {
-                0.0 =>
+                let old = out.0.0[0];
+                out.0.0[0] = amp;
+                // compute new complex value
+                match old
                 {
-                    *o.1 = Complex32::from_polar(new * s, *o.0.1);
-                },
-                _ =>
-                {
+                    0.0 => *out.1 = Complex32::from_polar(amp * s, *out.0.1),
                     // keep direction (phase)
-                    *o.1 = *o.1 * (new / old);
+                    _ => *out.1 = *out.1 * (amp / old)
                 }
-            }
+            });
+            return;
+        }
+        
+        fill_format(&mut iter, start, end, |out, amp|
+        {
+            out.0.0[0] = amp;
+            *out.1 = Complex32::new(amp * s, 0.0);
         });
     }
     pub fn set_phase_point(&mut self, index: usize, value: f32)
