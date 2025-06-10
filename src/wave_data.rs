@@ -78,14 +78,16 @@ impl WaveData
     {
         if self.wave.len() == 0 { return; }
         
+        wn.set_invert(true);
         self.dft = dft_analysis(wn, &self.wave);
         self.update_spec_phase();
     }
-    pub fn compute_plot(&mut self, wn_back: &mut WCache<f32>)
+    pub fn compute_plot(&mut self, wn: &mut WCache<f32>)
     {
         if self.dft.len() == 0 { return; }
         
-        let plot = form_plot(wn_back, &self.dft, self.wave.len());
+        wn.set_invert(false);
+        let plot = form_plot(wn, &self.dft, self.wave.len());
         self.wave = plot.iter().map(|c| c.re).collect();
     }
     pub fn resize(&mut self, size: usize)

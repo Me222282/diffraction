@@ -37,10 +37,20 @@ impl<T: Float + ConstOne + ConstZero + FloatConst> WCache<T>
     {
         if self.invert == invert { return; }
         
-        // recalculate all data for inverted/normal fft
-        let power = self.nth_roots.len();
-        self.nth_roots.clear();
-        self.ensure_max_power(power);
+        self.invert = invert;
+        // // recalculate all data for inverted/normal fft
+        // let power = self.nth_roots.len();
+        // self.nth_roots.clear();
+        // self.ensure_max_power(power);
+        
+        // swap polarity of imaginary components
+        for nth in &mut self.nth_roots
+        {
+            for c in nth
+            {
+                c.im = -c.im;
+            }
+        }
     }
 }
 
@@ -220,7 +230,7 @@ pub fn fft_iterative_v2<T: Float + ConstOne + ConstZero + FloatConst>(
         dout.copy_from_slice(din);
     }
 }
-/// `y.len()`must be a power of 2
+// /// `y.len()`must be a power of 2
 // pub fn fft_iterative_v3<T: Float + ConstOne + ConstZero + FloatConst>(
 //     wn: &WCache<T>, y: &mut [Complex<T>])
 // {
@@ -263,38 +273,3 @@ pub fn fft_iterative_v2<T: Float + ConstOne + ConstZero + FloatConst>(
 //         current += 2;
 //     }
 // }
-
-fn dft_test<T: Float + ConstOne + ConstZero + FloatConst>(
-    wn: &WCache<T>, y: &mut [Complex<T>])
-{
-    let len = y.len();
-    let power = (usize::BITS - len.leading_zeros() - 1) as usize;
-    
-    let n = T::ONE / T::from(len).unwrap();
-    
-    let out: Vec<Complex<T>> = (0..len).map(|o|
-    {
-        // let w: &[Complex<T>];
-        // unsafe
-        // {
-        //     w = wn.get_nth_roots_unchecked(power);
-        // }
-        let k = T::from(o).unwrap();
-        
-        let mut sum = Complex::<T>::ZERO;
-        for x in y.iter().enumerate()
-        {
-            // let i = (o * x.0) % len;
-            // unsafe
-            // {
-            //     sum = sum + (*x.1 * w.get_unchecked(i));
-            // }
-            let w = Complex::<T>::cis(-T::TAU() * n * k * T::from(x.0).unwrap());
-            sum = sum + (*x.1 * w);
-        }
-        
-        return sum;
-    }).collect();
-    
-    y.copy_from_slice(&out);
-}

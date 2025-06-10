@@ -39,7 +39,6 @@ struct State
 {
     plot: WaveData,
     wn: WCache<f32>,
-    wn_back: WCache<f32>,
     last_point: (usize, f32),
     view_phase: bool
 }
@@ -54,7 +53,6 @@ impl Default for State
             view_phase: false,
             plot,
             wn: WCache::<f32>::new(true),
-            wn_back: WCache::<f32>::new(false),
             last_point: Default::default()
         }
     }
@@ -103,25 +101,25 @@ fn update(state: &mut State, message: Message)
         Message::PlotFreq(i, v) =>
         {
             state.plot.set_spec_point(i, v);
-            state.plot.compute_plot(&mut state.wn_back);
+            state.plot.compute_plot(&mut state.wn);
             state.last_point = (i, v);
         },
         Message::DragFreq(i, v) =>
         {
             state.plot.set_spec_line(state.last_point, (i, v));
-            state.plot.compute_plot(&mut state.wn_back);
+            state.plot.compute_plot(&mut state.wn);
             state.last_point = (i, v);
         },
         Message::PlotPhase(i, v) =>
         {
             state.plot.set_phase_point(i, v);
-            state.plot.compute_plot(&mut state.wn_back);
+            state.plot.compute_plot(&mut state.wn);
             state.last_point = (i, v);
         },
         Message::DragPhase(i, v) =>
         {
             state.plot.set_phase_line(state.last_point, (i, v));
-            state.plot.compute_plot(&mut state.wn_back);
+            state.plot.compute_plot(&mut state.wn);
             state.last_point = (i, v);
         },
         Message::Clear =>
