@@ -23,17 +23,6 @@ use num::traits::ConstZero;
 use num::traits::FloatConst;
 use zene_structs::Vector3;
 
-pub fn get_waves<T: Float + From<usize>>(dft: &[Complex<T>], dt: T, speed: T) -> Box<[Wave<T>]>
-{
-    // skip f = 0Hz
-    let waves = dft.into_iter().skip(1).enumerate().map(|c|
-    {
-        return Wave::<T>::new(speed / (dt * c.0.into()), c.1.norm_sqr());
-    });
-    
-    return waves.collect::<Box<[Wave<T>]>>();
-}
-
 fn next_power_of_2(n: usize) -> u32
 {
     return usize::BITS - n.leading_zeros();

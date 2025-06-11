@@ -1,6 +1,6 @@
 use std::mem::replace;
 
-use num::{traits::{ConstOne, ConstZero, FloatConst}, Complex, Float, Zero};
+use num::{traits::{ConstOne, ConstZero, FloatConst}, Complex, Float, NumCast, Zero};
 use zene_structs::{Vector2, Vector3};
 
 use crate::Slit;
@@ -12,7 +12,7 @@ pub struct EMEnv<'a, T: Float>
 }
 
 impl<'a, T> EMEnv<'a, T>
-    where T: Float + ConstOne + ConstZero + FloatConst + Into<f32>
+    where T: Float + ConstOne + ConstZero + FloatConst + Into<f32> + std::fmt::Display
 {
     pub fn new(scr_a: Vector2<T>, scr_b: Vector2<T>) -> Self
     {
@@ -29,12 +29,12 @@ impl<'a, T> EMEnv<'a, T>
         return a + ((b - a) * x);
     }
     
-    pub fn generate_pattern<S>(&self, size: usize, wave_map: &[(T, Vector3<f32>)], samples: &mut [S])
+    pub fn generate_pattern<S>(&self, wave_map: &[(T, Vector3<f32>)], samples: &mut [S], scale: T)
         where S: From<Vector3<f32>>
     {
         let mut buffer: Vec<(T, Complex<T>)> = wave_map.iter().map(|w| (w.0, Complex::<T>::ZERO)).collect();
         
-        let step = T::one() / T::from(size - 1).unwrap();
+        let step = T::one() / <T as NumCast>::from(samples.len() - 1).unwrap();
         let mut x = T::zero();
         
         for p in samples
@@ -53,7 +53,7 @@ impl<'a, T> EMEnv<'a, T>
             for ((_, c), (_, colour)) in buffer.iter_mut().zip(wave_map.iter())
             {
                 let c = replace(c, Complex::<T>::ZERO);
-                let i = *colour * c.norm_sqr().into();
+                let i = *colour * (c.norm_sqr() * scale).into();
                 sample += i;
             }
             

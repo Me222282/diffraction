@@ -6,14 +6,14 @@ mod wave_data;
 
 use std::f32::consts::{PI, TAU};
 
-use backend::{Colour, WCache};
+use backend::{Colour, EMEnv, Slit, WCache, Wave};
 use iced::{widget::{button, column, row, slider, text, toggler}, Alignment, Element, Length, Padding};
 use num::{complex::Complex32, Zero};
 use plot_element::plotter;
 use screen_element::screen;
 use screen_renderer::SCREEN_SIZE;
 use wave_data::WaveData;
-use zene_structs::Vector4;
+use zene_structs::{Vector2, Vector3, Vector4};
 
 pub const PLOTTER_SIZE: u32 = 200;
 pub const SPECTRUM_SIZE: u32 = 256;
@@ -64,6 +64,27 @@ impl Default for State
     }
 }
 
+pub fn get_waves(spec: &[[f32; 4]], wave_map: &[(f32, Vector3<f32>)]) -> Box<[Wave<f32>]>
+{
+    // skip f = 0Hz
+    let waves = spec.iter().zip(wave_map.iter()).map(|(a, w)|
+    {
+        return Wave::<f32>::new(w.0, a[0]);
+    });
+    
+    return waves.collect::<Box<[Wave<f32>]>>();
+}
+
+fn colours(colours: &mut [Colour], plot: &WaveData)
+{
+    let mut env = EMEnv::<f32>::new(
+        Vector2::new(-2e9, 2e9),
+        Vector2::new(2e9, 2e9));
+    let waves = get_waves(&plot.spectrum, &plot.wave_map);
+    env.slits.push(Slit::new(1560.0, Vector2::zero(), Vector2::new(0.0, 1.0), &waves));
+    env.generate_pattern(&plot.wave_map, colours, 1.0);
+}
+
 fn tri(p: f32) -> f32
 {
     return ((p + 0.25 - (p + 0.75).floor()).abs() * 4.0) - 1.0;
@@ -86,6 +107,7 @@ fn update(state: &mut State, message: Message)
         {
             state.view_phase = v;
             state.plot.set_phase(v);
+            colours(&mut state.colours, &state.plot);
         }
         Message::PlotSize(size) =>
         {
@@ -219,7 +241,7 @@ fn view(state: &State) -> Element<Message>
     if state.view_phase
     {
         view = view.push(
-            plotter::<fn(usize) -> Message, _, _, _, _, 1>(None, Message::PlotPhase, Message::DragPhase,
+            plotter::<fn(usize) -> Message, _, _, _, _, 2>(None, Message::PlotPhase, Message::DragPhase,
                 &plot.phase, -PI..PI, Vector4::new(0.0, 1.0, 1.0, 1.0))
                 .width(Length::Fixed(SPECTRUM_SIZE as f32)));
     }
