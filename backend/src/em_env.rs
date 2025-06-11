@@ -49,10 +49,10 @@ impl<'a, T> EMEnv<'a, T>
             }
             
             // sum total and clear buffer
-            for wave in buffer.iter_mut().zip(wave_map.iter())
+            for ((_, c), (_, colour)) in buffer.iter_mut().zip(wave_map.iter())
             {
-                let c = replace(&mut wave.0.1, Complex::<T>::ZERO);
-                let i = wave.1.1 * c.norm().into();
+                let c = replace(c, Complex::<T>::ZERO);
+                let i = *colour * c.norm_sqr().into();
                 *p = *p + i;
             }
         }

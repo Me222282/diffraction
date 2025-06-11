@@ -1,5 +1,6 @@
 use backend::{dft_analysis, form_plot, wave_length_colour, WCache};
 use num::{complex::Complex32, NumCast, traits::{ConstOne, NumOps}};
+use zene_structs::Vector3;
 
 pub fn fill<F>(plot: &mut [F], start: (usize, F), end: (usize, F))
     where F: NumOps + ConstOne + NumCast + Copy
@@ -22,14 +23,14 @@ pub fn fill_format<'a, I: 'a, F, G: 'a, W>(plot: &'a mut I, start: (usize, F), e
     let diff = end.1 - start.1;
     let scale = F::ONE / F::from(1 + end.0 - start.0).unwrap();
     
-    for p in plot.into_iter().skip(start.0).take(end.0 - start.0 + 1).enumerate()
+    for (index, point) in plot.into_iter().skip(start.0).take(end.0 - start.0 + 1).enumerate()
     {
-        let v = scale * F::from(p.0).unwrap();
-        write(p.1, start.1 + (diff * v));
+        let v = scale * F::from(index).unwrap();
+        write(point, start.1 + (diff * v));
     }
 }
 
-fn lerp_index(vec: &Vec<f32>, i: f32) -> f32
+fn lerp_index(vec: &[f32], i: f32) -> f32
 {
     let ld = i.floor();
     let l = ld as usize;
@@ -45,7 +46,7 @@ fn lerp_index(vec: &Vec<f32>, i: f32) -> f32
     let b = vec[u];
     return ((b - a) * i) + a;
 }
-fn remap(a: &Vec<f32>, b: &mut Vec<f32>)
+fn remap(a: &[f32], b: &mut [f32])
 {
     let al = a.len();
     // no data to remap
@@ -64,10 +65,11 @@ fn remap(a: &Vec<f32>, b: &mut Vec<f32>)
 #[derive(Debug, Clone, Default)]
 pub struct WaveData
 {
-    pub wave: Vec<f32>,
-    pub spectrum: Vec<[f32; 4]>,
-    pub phase: Vec<f32>,
+    pub wave: Box<[f32]>,
+    pub spectrum: Box<[[f32; 4]]>,
+    pub phase: Box<[f32]>,
     pub dft: Vec<Complex32>,
+    pub wave_map: Box<[(f32, Vector3<f32>)]>,
     scale: f32,
     use_phase: bool
 }
@@ -92,21 +94,34 @@ impl WaveData
     }
     pub fn resize(&mut self, size: usize)
     {
-        let mut new = vec![0.0; size];
+        let mut new = vec![0.0; size].into_boxed_slice();
         
         remap(&self.wave, &mut new);
     
         self.wave = new;
     }
+    fn generate_wave_map(&mut self, size: usize)
+    {
+        let t = 300.0 / ((size - 1) as f32);
+        self.wave_map = (0..size).into_iter().map(|i|
+        {
+            let l = 700.0 - (i as f32 * t);
+            return (l, wave_length_colour(l, 0.8));
+        }).collect();
+    }
     pub fn update_spec_phase(&mut self)
     {
-        let s = self.scale / (self.dft.len() as f32);
-        let t = 300.0 / (self.dft.len() as f32);
-        self.spectrum = self.dft.iter().skip(1).enumerate().map(|p|
+        let size = self.dft.len();
+        if self.wave_map.len() != size - 1
         {
-            let v = p.0 as f32 * t;
-            let c = wave_length_colour(700.0 - v, 0.8);
-            let amp = p.1.norm();
+            self.generate_wave_map(size - 1);
+        }
+        
+        let s = self.scale / (size as f32);
+        self.spectrum = self.dft.iter().skip(1).zip(&self.wave_map).map(|p|
+        {
+            let c = p.1.1;
+            let amp = p.0.norm();
             return [amp * s, c.x, c.y, c.z];
         }).collect();
         

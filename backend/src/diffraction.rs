@@ -7,15 +7,15 @@ use crate::LambdaZip;
 
 pub struct Wave<T: Float>
 {
-    pub intensity: T,
+    pub amplitude: T,
     pub lambda: T
 }
 
 impl<T: Float> Wave<T>
 {
-    pub fn new(wavelength: T, intensity: T) -> Self
+    pub fn new(wavelength: T, amplitude: T) -> Self
     {
-        return Self { intensity, lambda: wavelength };
+        return Self { amplitude, lambda: wavelength };
     }
     
     pub fn diffract(&self, beta_lambda: T) -> Complex<T>
@@ -28,7 +28,7 @@ impl<T: Float> Wave<T>
         let beta = beta_lambda * self.lambda;
         
         let sc = beta.sin_cos();
-        let sri = (sc.0 / beta).abs();
+        let sri = (sc.0 / beta).abs() * self.amplitude;
         return Complex::new(sri * sc.1, sri * sc.0);
     }
 }
