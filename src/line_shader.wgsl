@@ -24,11 +24,9 @@ struct VertexOut
 var<uniform> uniform_data: Globals;
 @group(0) @binding(1)
 var data_source: texture_1d<f32>;
-// @group(0) @binding(2)
-// var data_sampler: sampler;
 
 @vertex
-fn vs_main(@builtin(vertex_index) i: u32, in: VertexIn) -> VertexOut
+fn vs_main(in: VertexIn) -> VertexOut
 {
     var out: VertexOut;
     out.pos = vec4<f32>(in.position, 0.0, 1.0);

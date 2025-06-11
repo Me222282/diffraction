@@ -29,16 +29,15 @@ impl<'a, T> EMEnv<'a, T>
         return a + ((b - a) * x);
     }
     
-    pub fn generate_pattern(&self, size: usize, wave_map: &[(T, Vector3<f32>)]) -> Vec<Vector3<f32>>
+    pub fn generate_pattern<S>(&self, size: usize, wave_map: &[(T, Vector3<f32>)], samples: &mut [S])
+        where S: From<Vector3<f32>>
     {
         let mut buffer: Vec<(T, Complex<T>)> = wave_map.iter().map(|w| (w.0, Complex::<T>::ZERO)).collect();
         
-        let step = T::one() / T::from(size).unwrap();
+        let step = T::one() / T::from(size - 1).unwrap();
         let mut x = T::zero();
         
-        let mut samples = vec![Vector3::<f32>::zero(); size];
-        
-        for p in &mut samples
+        for p in samples
         {
             let s_p = self.lerp(x);
             x = x + step;
@@ -48,15 +47,17 @@ impl<'a, T> EMEnv<'a, T>
                 s.calculate_intensity(s_p, &mut buffer);
             }
             
+            let mut sample = Vector3::<f32>::zero();
+            
             // sum total and clear buffer
             for ((_, c), (_, colour)) in buffer.iter_mut().zip(wave_map.iter())
             {
                 let c = replace(c, Complex::<T>::ZERO);
                 let i = *colour * c.norm_sqr().into();
-                *p = *p + i;
+                sample += i;
             }
+            
+            *p = sample.into();
         }
-        
-        return samples;
     }
 }
