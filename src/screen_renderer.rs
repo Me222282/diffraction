@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use backend::Colour;
 use iced::widget::shader::wgpu::util::DeviceExt;
 use iced::widget::shader::wgpu::*;
 use iced::widget::shader::Primitive;
@@ -9,12 +10,12 @@ pub const SCREEN_SIZE: u32 = 450;
 #[derive(Debug)]
 pub struct Screen
 {
-    colours: Vec<[f32; 3]>
+    colours: Vec<Colour>
 }
 
 impl Screen
 {
-    pub fn new(colours: Vec<[f32; 3]>) -> Self
+    pub fn new(colours: Vec<Colour>) -> Self
     {
         return Self { colours };
     }
@@ -59,7 +60,7 @@ impl Primitive for Screen
             // The layout of the texture
             ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(12 * size),
+                bytes_per_row: Some(4 * size),
                 rows_per_image: None,
             },
             Extent3d { width: size, height: 1, depth_or_array_layers: 1 });

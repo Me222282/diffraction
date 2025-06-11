@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::marker::PhantomData;
 
 use bytemuck::NoUninit;
 use iced::widget::shader::wgpu::util::{BufferInitDescriptor, DeviceExt};
@@ -64,15 +63,15 @@ impl<D: TextureData, const ID: usize> Primitive for Lines<D, ID>
         bounds: &Rectangle,
         _viewport: &iced::widget::shader::Viewport)
     {
-        let pipe = storage.get_mut::<LinePipe<D, ID>>();
+        let pipe = storage.get_mut::<LinePipe<ID>>();
         let pipe = match pipe
         {
             Some(lp) => lp,
             None =>
             {
-                let lp = LinePipe::<D, ID>::new(device, format);
+                let lp = LinePipe::<ID>::new::<D>(device, format);
                 storage.store(lp);
-                storage.get_mut::<LinePipe<D, ID>>().unwrap()
+                storage.get_mut::<LinePipe<ID>>().unwrap()
             },
         };
         
@@ -117,7 +116,7 @@ impl<D: TextureData, const ID: usize> Primitive for Lines<D, ID>
         target: &iced::widget::shader::wgpu::TextureView,
         clip_bounds: &Rectangle<u32>)
     {
-        let pipe = storage.get::<LinePipe<D, ID>>();
+        let pipe = storage.get::<LinePipe<ID>>();
         match pipe
         {
             Some(pipe) =>
@@ -180,19 +179,18 @@ impl Default for Uniform
     }
 }
 
-struct LinePipe<D: TextureData, const ID: usize>
+struct LinePipe<const ID: usize>
 {
     render_pipeline: RenderPipeline,
     vertex_buffer: Buffer,
     uniform_buffer: Buffer,
     sample_texture: Texture,
-    bind_group: BindGroup,
-    _phan: PhantomData<D>
+    bind_group: BindGroup
 }
 
-impl<D: TextureData, const ID: usize> LinePipe<D, ID>
+impl<const ID: usize> LinePipe<ID>
 {
-    pub fn new(
+    pub fn new<D: TextureData>(
         device: &iced::widget::shader::wgpu::Device,
         format: iced::widget::shader::wgpu::TextureFormat) -> Self
     {
@@ -346,8 +344,7 @@ impl<D: TextureData, const ID: usize> LinePipe<D, ID>
             vertex_buffer,
             uniform_buffer,
             sample_texture,
-            bind_group,
-            _phan: PhantomData::default()
+            bind_group
         };
     }
 }

@@ -13,6 +13,9 @@ pub use crate::lambda_zip::*;
 mod em_env;
 pub use crate::em_env::*;
 
+mod colour;
+pub use crate::colour::*;
+
 use num::Complex;
 use num::Float;
 use num::traits::ConstOne;

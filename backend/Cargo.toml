@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 num = "0.4.3"
 zene_structs = { git = "https://github.com/Me222282/zs_rust.git" }
+bytemuck = "1.21.0"

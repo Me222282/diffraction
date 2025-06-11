@@ -1,10 +1,11 @@
+use backend::Colour;
 use iced::widget::{shader::Program, shader};
 use iced::widget::Shader;
 use iced::Rectangle;
 
 use crate::screen_renderer::{Screen, SCREEN_SIZE};
 
-pub fn screen<'a>(colours: &'a [[f32; 3]]) -> Shader<(), ScreenEl<'a>>
+pub fn screen<'a, Mesaage>(colours: &'a [Colour]) -> Shader<Mesaage, ScreenEl<'a>>
 {
     return shader(
         ScreenEl { colours }
@@ -13,10 +14,10 @@ pub fn screen<'a>(colours: &'a [[f32; 3]]) -> Shader<(), ScreenEl<'a>>
 
 pub struct ScreenEl<'a>
 {
-    colours: &'a [[f32; 3]]
+    colours: &'a [Colour]
 }
 
-impl<'a> Program<()> for ScreenEl<'a>
+impl<'a, Message> Program<Message> for ScreenEl<'a>
 {
     type State = ();
     type Primitive = Screen;

@@ -6,10 +6,12 @@ mod wave_data;
 
 use std::f32::consts::{PI, TAU};
 
-use backend::WCache;
+use backend::{Colour, WCache};
 use iced::{widget::{button, column, row, slider, text, toggler}, Alignment, Element, Length, Padding};
 use num::{complex::Complex32, Zero};
 use plot_element::plotter;
+use screen_element::screen;
+use screen_renderer::SCREEN_SIZE;
 use wave_data::WaveData;
 use zene_structs::Vector4;
 
@@ -42,7 +44,8 @@ struct State
     plot: WaveData,
     wn: WCache<f32>,
     last_point: (usize, f32),
-    view_phase: bool
+    view_phase: bool,
+    colours: Box<[Colour]>
 }
 impl Default for State
 {
@@ -55,7 +58,8 @@ impl Default for State
             view_phase: false,
             plot,
             wn: WCache::<f32>::new(true),
-            last_point: Default::default()
+            last_point: Default::default(),
+            colours: vec![Colour::rgb(0, 0, 255); SCREEN_SIZE as usize].into_boxed_slice()
         }
     }
 }
@@ -205,7 +209,9 @@ fn view(state: &State) -> Element<Message>
             
         slider(1.0..=5.0, spec_scale, Message::SetScale).step(0.01)
             .width(Length::Fixed(SPECTRUM_SIZE as f32)),
-        text(format!("Spectrum Scale: {spec_scale:.2}"))
+        text(format!("Spectrum Scale: {spec_scale:.2}")),
+        
+        screen(&state.colours)
     ].spacing(10)
     .align_x(Alignment::Center)
     .padding(Padding::new(5.0));
