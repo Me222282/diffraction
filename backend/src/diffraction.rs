@@ -1,11 +1,7 @@
-use std::fmt::Display;
-
 use num::{traits::{ConstOne, ConstZero, FloatConst}, Complex, Float};
 use zene_structs::{Vector2, Vector};
 
 use crate::LambdaZip;
-
-// pub const C: f64 = 299_792_458.0;
 
 pub struct Wave<T: Float>
 {
@@ -65,7 +61,7 @@ impl<'a, T: Float> Slit<'a, T>
     }
     
     pub fn beta_lambda(&self, x: Vector2<T>) -> Option<T>
-        where T: FloatConst + ConstZero + Display
+        where T: FloatConst + ConstZero
     {
         let diff = x - self.position;
         let dir = self.direction;
@@ -78,13 +74,12 @@ impl<'a, T: Float> Slit<'a, T>
         
         // sin of acute angle
         let sin = diff.perp_dot(dir) / diff.length();
-        println!("{sin}");
         // beta = pi * d * sin(theta) / lambda
         return Some(T::PI() * self.width * sin);
     }
     
     pub fn calculate_intensity(&self, x: Vector2<T>, result: &mut [(T, Complex<T>)])
-        where T: ConstOne + ConstZero + FloatConst + Display
+        where T: ConstOne + ConstZero + FloatConst
     {
         let bl_o = self.beta_lambda(x);
         match bl_o

@@ -200,11 +200,6 @@ impl<const ID: usize> LinePipe<ID>
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST
         });
         
-        // let sample_buffer = device.create_buffer_init(&BufferInitDescriptor {
-        //     label: Some("lines.samples"),
-        //     contents: bytemuck::cast_slice(&[Uniform { colour: Vector4::<f32>::zero(), h_size: Vector2::<f32>::zero() }]),
-        //     usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST
-        // });
         let sample_texture = device.create_texture(&TextureDescriptor {
                 size: Extent3d { width: SPECTRUM_SIZE, height: 1, depth_or_array_layers: 1 },
                 mip_level_count: 1,
@@ -218,15 +213,6 @@ impl<const ID: usize> LinePipe<ID>
         );
         
         let sample_texture_view = sample_texture.create_view(&TextureViewDescriptor::default());
-        // let sample_sampler = device.create_sampler(&SamplerDescriptor {
-        //     address_mode_u: AddressMode::ClampToEdge,
-        //     address_mode_v: AddressMode::ClampToEdge,
-        //     address_mode_w: AddressMode::ClampToEdge,
-        //     mag_filter: FilterMode::Linear,
-        //     min_filter: FilterMode::Nearest,
-        //     mipmap_filter: FilterMode::Nearest,
-        //     ..Default::default()
-        // });
         
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("lines.uniform.bind"),
@@ -250,15 +236,7 @@ impl<const ID: usize> LinePipe<ID>
                         sample_type: TextureSampleType::Float { filterable: false },
                     },
                     count: None,
-                },
-                // BindGroupLayoutEntry {
-                //     binding: 2,
-                //     visibility: ShaderStages::FRAGMENT,
-                //     // This should match the filterable field of the
-                //     // corresponding Texture entry above.
-                //     ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                //     count: None,
-                // }
+                }
             ]
         });
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
@@ -272,11 +250,7 @@ impl<const ID: usize> LinePipe<ID>
                 BindGroupEntry {
                     binding: 1,
                     resource: BindingResource::TextureView(&sample_texture_view),
-                },
-                // BindGroupEntry {
-                //     binding: 2,
-                //     resource: BindingResource::Sampler(&sample_sampler),
-                // }
+                }
             ]
         });
         

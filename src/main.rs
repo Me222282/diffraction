@@ -22,6 +22,8 @@ pub const SPECTRUM_SIZE: u32 = 256;
 enum Message
 {
     SetScale(f32),
+    SetExpo(f32),
+    
     PlotSize(usize),
     PlotWave(usize, f32),
     DragWave(usize, f32),
@@ -45,7 +47,8 @@ struct State
     wn: WCache<f32>,
     last_point: (usize, f32),
     view_phase: bool,
-    colours: Box<[Colour]>
+    colours: Box<[Colour]>,
+    exposure: f32
 }
 impl Default for State
 {
@@ -59,7 +62,8 @@ impl Default for State
             plot,
             wn: WCache::<f32>::new(true),
             last_point: Default::default(),
-            colours: vec![Colour::rgb(0, 0, 255); SCREEN_SIZE as usize].into_boxed_slice()
+            colours: vec![Colour::ZERO; SCREEN_SIZE as usize].into_boxed_slice(),
+            exposure: 1.0
         }
     }
 }
@@ -82,7 +86,7 @@ fn colours(colours: &mut [Colour], plot: &WaveData)
         Vector2::new(2e9, 2e9));
     let waves = get_waves(&plot.spectrum, &plot.wave_map);
     env.slits.push(Slit::new(1560.0, Vector2::zero(), Vector2::new(0.0, 1.0), &waves));
-    env.generate_pattern(&plot.wave_map, colours, 1.0);
+    env.generate_pattern(&plot.wave_map, colours);
 }
 
 fn tri(p: f32) -> f32
@@ -103,6 +107,7 @@ fn update(state: &mut State, message: Message)
     match message
     {
         Message::SetScale(v) => state.plot.set_scale(v),
+        Message::SetExpo(v) => state.exposure = v,
         Message::ViewPhase(v) =>
         {
             state.view_phase = v;
@@ -231,9 +236,7 @@ fn view(state: &State) -> Element<Message>
             
         slider(1.0..=5.0, spec_scale, Message::SetScale).step(0.01)
             .width(Length::Fixed(SPECTRUM_SIZE as f32)),
-        text(format!("Spectrum Scale: {spec_scale:.2}")),
-        
-        screen(&state.colours)
+        text(format!("Spectrum Scale: {spec_scale:.2}"))
     ].spacing(10)
     .align_x(Alignment::Center)
     .padding(Padding::new(5.0));
@@ -245,6 +248,11 @@ fn view(state: &State) -> Element<Message>
                 &plot.phase, -PI..PI, Vector4::new(0.0, 1.0, 1.0, 1.0))
                 .width(Length::Fixed(SPECTRUM_SIZE as f32)));
     }
+    view = view.push(screen(&state.colours, state.exposure));
+    view = view.push(
+        slider(0.1..=10.0, state.exposure, Message::SetExpo).step(0.001)
+            .width(Length::Fixed(SCREEN_SIZE as f32)));
+    view = view.push(text(format!("Exposure: {:.3}", state.exposure)));
     
     return view.into();
 }

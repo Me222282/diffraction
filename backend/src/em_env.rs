@@ -12,7 +12,7 @@ pub struct EMEnv<'a, T: Float>
 }
 
 impl<'a, T> EMEnv<'a, T>
-    where T: Float + ConstOne + ConstZero + FloatConst + Into<f32> + std::fmt::Display
+    where T: Float + ConstOne + ConstZero + FloatConst + Into<f32>
 {
     pub fn new(scr_a: Vector2<T>, scr_b: Vector2<T>) -> Self
     {
@@ -29,7 +29,7 @@ impl<'a, T> EMEnv<'a, T>
         return a + ((b - a) * x);
     }
     
-    pub fn generate_pattern<S>(&self, wave_map: &[(T, Vector3<f32>)], samples: &mut [S], scale: T)
+    pub fn generate_pattern<S>(&self, wave_map: &[(T, Vector3<f32>)], samples: &mut [S])
         where S: From<Vector3<f32>>
     {
         let mut buffer: Vec<(T, Complex<T>)> = wave_map.iter().map(|w| (w.0, Complex::<T>::ZERO)).collect();
@@ -53,7 +53,7 @@ impl<'a, T> EMEnv<'a, T>
             for ((_, c), (_, colour)) in buffer.iter_mut().zip(wave_map.iter())
             {
                 let c = replace(c, Complex::<T>::ZERO);
-                let i = *colour * (c.norm_sqr() * scale).into();
+                let i = *colour * c.norm_sqr().into();
                 sample += i;
             }
             

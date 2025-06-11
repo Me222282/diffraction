@@ -14,6 +14,8 @@ struct VertexOut
 var colours: texture_1d<f32>;
 @group(0) @binding(1)
 var data_sampler: sampler;
+@group(0) @binding(2)
+var<uniform> scale: f32;
 
 @vertex
 fn vs_main(in: VertexIn) -> VertexOut
@@ -27,5 +29,5 @@ fn vs_main(in: VertexIn) -> VertexOut
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32>
 {
-    return vec4<f32>(textureSample(colours, data_sampler, in.uv).rgb, 1.0);
+    return vec4<f32>(textureSample(colours, data_sampler, in.uv).rgb * scale, 1.0);
 }

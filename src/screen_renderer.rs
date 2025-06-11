@@ -4,20 +4,22 @@ use iced::widget::shader::wgpu::util::DeviceExt;
 use iced::widget::shader::wgpu::*;
 use iced::widget::shader::Primitive;
 use iced::Rectangle;
+use util::BufferInitDescriptor;
 
 pub const SCREEN_SIZE: u32 = 450;
 
 #[derive(Debug)]
 pub struct Screen
 {
-    colours: Vec<Colour>
+    colours: Vec<Colour>,
+    exposure: f32
 }
 
 impl Screen
 {
-    pub fn new(colours: Vec<Colour>) -> Self
+    pub fn new(colours: Vec<Colour>, exposure: f32) -> Self
     {
-        return Self { colours };
+        return Self { colours, exposure };
     }
 }
 
@@ -47,6 +49,9 @@ impl Primitive for Screen
         
         let size = self.colours.len() as u32;
         
+        queue.write_buffer(&pipe.uniform_buffer, 0,
+            bytemuck::cast_slice(&[self.exposure]));
+        
         queue.write_texture(
             // Tells wgpu where to copy the pixel data
             ImageCopyTexture {
@@ -60,7 +65,7 @@ impl Primitive for Screen
             // The layout of the texture
             ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(4 * size),
+                bytes_per_row: Some(16 * size),
                 rows_per_image: None,
             },
             Extent3d { width: size, height: 1, depth_or_array_layers: 1 });
@@ -116,6 +121,7 @@ struct ScreenPipe
 {
     render_pipeline: RenderPipeline,
     vertex_buffer: Buffer,
+    uniform_buffer: Buffer,
     texture: Texture,
     // sampler: Sampler,
     bind_group: BindGroup
@@ -127,12 +133,18 @@ impl ScreenPipe
         device: &iced::widget::shader::wgpu::Device,
         format: iced::widget::shader::wgpu::TextureFormat) -> Self
     {
+        let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("screen.uniform"),
+            contents: bytemuck::cast_slice(&[0.0]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST
+        });
+        
         let texture = device.create_texture(&TextureDescriptor {
                 size: Extent3d { width: SCREEN_SIZE, height: 1, depth_or_array_layers: 1 },
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: TextureDimension::D1,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba32Float,
                 usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
                 label: Some("screen.colours"),
                 view_formats: &[]
@@ -144,7 +156,7 @@ impl ScreenPipe
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
-            mag_filter: FilterMode::Linear,
+            mag_filter: FilterMode::Nearest,
             min_filter: FilterMode::Nearest,
             mipmap_filter: FilterMode::Nearest,
             ..Default::default()
@@ -159,7 +171,7 @@ impl ScreenPipe
                     ty: BindingType::Texture {
                         multisampled: false,
                         view_dimension: TextureViewDimension::D1,
-                        sample_type: TextureSampleType::Float { filterable: true }
+                        sample_type: TextureSampleType::Float { filterable: false }
                     },
                     count: None,
                 },
@@ -168,9 +180,19 @@ impl ScreenPipe
                     visibility: ShaderStages::FRAGMENT,
                     // This should match the filterable field of the
                     // corresponding Texture entry above.
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                    ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                     count: None
-                }
+                },
+                BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ]
         });
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
@@ -184,7 +206,11 @@ impl ScreenPipe
                 BindGroupEntry {
                     binding: 1,
                     resource: BindingResource::Sampler(&sampler),
-                }
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: uniform_buffer.as_entire_binding(),
+                },
             ]
         });
         
@@ -250,6 +276,7 @@ impl ScreenPipe
         return Self {
             render_pipeline,
             vertex_buffer,
+            uniform_buffer,
             texture,
             // sampler,
             bind_group

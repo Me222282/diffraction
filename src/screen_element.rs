@@ -5,16 +5,17 @@ use iced::Rectangle;
 
 use crate::screen_renderer::{Screen, SCREEN_SIZE};
 
-pub fn screen<'a, Mesaage>(colours: &'a [Colour]) -> Shader<Mesaage, ScreenEl<'a>>
+pub fn screen<'a, Mesaage>(colours: &'a [Colour], exposure: f32) -> Shader<Mesaage, ScreenEl<'a>>
 {
     return shader(
-        ScreenEl { colours }
+        ScreenEl { colours, exposure }
     ).width(SCREEN_SIZE as f32);
 }
 
 pub struct ScreenEl<'a>
 {
-    colours: &'a [Colour]
+    colours: &'a [Colour],
+    exposure: f32
 }
 
 impl<'a, Message> Program<Message> for ScreenEl<'a>
@@ -28,7 +29,7 @@ impl<'a, Message> Program<Message> for ScreenEl<'a>
         _cursor: iced::advanced::mouse::Cursor,
         _bounds: Rectangle) -> Self::Primitive
     {
-        return Screen::new(self.colours.to_vec());
+        return Screen::new(self.colours.to_vec(), self.exposure);
     }
     
     // fn update(
