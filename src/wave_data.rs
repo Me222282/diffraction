@@ -69,7 +69,7 @@ pub struct WaveData
     pub spectrum: Box<[[f32; 4]]>,
     pub phase: Box<[f32]>,
     pub dft: Vec<Complex32>,
-    pub wave_map: Box<[(f32, Vector3<f32>)]>,
+    pub wave_map: Box<[(f64, Vector3<f32>)]>,
     scale: f32,
     use_phase: bool
 }
@@ -106,7 +106,7 @@ impl WaveData
         self.wave_map = (0..size).into_iter().map(|i|
         {
             let l = 700.0 - (i as f32 * t);
-            return (l, wave_length_colour(l, 0.8));
+            return (l as f64, wave_length_colour(l, 0.8));
         }).collect();
     }
     pub fn update_spec_phase(&mut self)

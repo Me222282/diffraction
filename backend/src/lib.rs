@@ -151,3 +151,36 @@ pub fn wave_length_colour(wl: f32, gamma: f32) -> Vector3<f32>
         }
     );
 }
+
+pub trait IntoF32
+{
+    fn into_f32(self) -> f32;
+}
+// impl<T: Into<f32>> IntoF32 for T
+// {
+//     fn into_f32(self) -> f32
+//     {
+//         return self.into();
+//     }
+// }
+impl IntoF32 for f32
+{
+    fn into_f32(self) -> f32
+    {
+        return self;
+    }
+}
+impl IntoF32 for f64
+{
+    fn into_f32(self) -> f32
+    {
+        return self as f32;
+    }
+}
+// impl IntoF32 for f128
+// {
+//     fn into_f32(self) -> f32
+//     {
+//         return self as f32;
+//     }
+// }

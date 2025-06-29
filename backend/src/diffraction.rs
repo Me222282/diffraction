@@ -16,18 +16,21 @@ impl<T: Float> Wave<T>
         return Self { amplitude, lambda: wavelength };
     }
     
-    pub fn diffract(&self, beta_lambda: T) -> Complex<T>
-        where T: ConstOne + ConstZero
+    pub fn diffract(&self, diff_args: (T, T)) -> Complex<T>
+        where T: ConstOne + ConstZero + FloatConst
     {
-        if beta_lambda.is_zero()
-        {
-            return Complex::new(T::ONE, T::ZERO);
-        }
-        let beta = beta_lambda / self.lambda;
+        let rec = T::ONE / self.lambda;
+        let phase = T::TAU() * (diff_args.1 % self.lambda) * rec;
         
-        let sc = beta.sin_cos();
-        let sri = (sc.0 / beta).abs() * self.amplitude;
-        return Complex::new(sri * sc.1, sri * sc.0);
+        if diff_args.0.is_zero()
+        {
+            return Complex::from_polar(T::ONE, phase);
+        }
+        let beta = diff_args.0 * rec;
+        
+        let sin = beta.sin();
+        let sri = (sin / beta).abs() * self.amplitude;
+        return Complex::from_polar(sri, phase);
     }
 }
 
@@ -60,7 +63,7 @@ impl<'a, T: Float> Slit<'a, T>
         self.direction = direction.normalised();
     }
     
-    pub fn beta_lambda(&self, x: Vector2<T>) -> Option<T>
+    pub fn diff_args(&self, x: Vector2<T>) -> Option<(T, T)>
         where T: FloatConst + ConstZero
     {
         let diff = x - self.position;
@@ -72,23 +75,24 @@ impl<'a, T: Float> Slit<'a, T>
             return None;
         }
         
+        let len = diff.length();
         // sin of acute angle
-        let sin = diff.perp_dot(dir) / diff.length();
+        let sin = diff.perp_dot(dir) / len;
         // beta = pi * d * sin(theta) / lambda
-        return Some(T::PI() * self.width * sin);
+        return Some((T::PI() * self.width * sin, len));
     }
     
     pub fn calculate_intensity(&self, x: Vector2<T>, result: &mut [(T, Complex<T>)])
         where T: ConstOne + ConstZero + FloatConst
     {
-        let bl_o = self.beta_lambda(x);
-        match bl_o
+        let args_o = self.diff_args(x);
+        match args_o
         {
-            Some(bl) =>
+            Some(args) =>
             {
                 for (res, wave) in LambdaZip::new(result.iter_mut(), self.waves.iter())
                 {
-                    *res = *res + wave.diffract(bl);
+                    *res = *res + wave.diffract(args);
                 }
             },
             None => {}
