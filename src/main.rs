@@ -3,6 +3,7 @@ mod line_renderer;
 mod screen_element;
 mod screen_renderer;
 mod wave_data;
+mod scene;
 
 use std::f32::consts::{PI, TAU};
 
@@ -68,26 +69,15 @@ impl Default for State
     }
 }
 
-pub fn get_waves(spec: &[[f32; 4]], wave_map: &[(f64, Vector3<f32>)]) -> Box<[Wave<f64>]>
-{
-    // skip f = 0Hz
-    let waves = spec.iter().zip(wave_map.iter()).map(|(a, w)|
-    {
-        return Wave::<f64>::new(w.0, a[0] as f64);
-    });
-    
-    return waves.collect::<Box<[Wave<f64>]>>();
-}
-
 fn colours(colours: &mut [Colour], plot: &WaveData)
 {
-    let mut env = EMEnv::<f64>::new(
-        Vector2::new(-2e9, 2e9),
-        Vector2::new(2e9, 2e9));
-    let waves = get_waves(&plot.spectrum, &plot.wave_map);
-    env.slits.push(Slit::new(156.0, Vector2::new(-1000.0, 0.0), Vector2::new(0.0, 1.0), &waves));
-    env.slits.push(Slit::new(156.0, Vector2::new(1000.0, 0.0), Vector2::new(0.0, 1.0), &waves));
-    env.generate_pattern(&plot.wave_map, colours);
+    // let mut env = EMEnv::<f64>::new(
+    //     Vector2::new(-2e9, 2e9),
+    //     Vector2::new(2e9, 2e9));
+    // let waves = get_waves(&plot.spectrum, &plot.wave_map);
+    // env.slits.push(Slit::new(156.0, Vector2::new(-1000.0, 0.0), Vector2::new(0.0, 1.0), &waves));
+    // env.slits.push(Slit::new(156.0, Vector2::new(1000.0, 0.0), Vector2::new(0.0, 1.0), &waves));
+    // env.generate_pattern(&plot.wave_map, colours);
 }
 
 fn tri(p: f32) -> f32

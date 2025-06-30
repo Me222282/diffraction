@@ -3,6 +3,7 @@ use zene_structs::{Vector2, Vector};
 
 use crate::LambdaZip;
 
+#[derive(Debug, Clone, Default)]
 pub struct Wave<T: Float>
 {
     pub amplitude: T,

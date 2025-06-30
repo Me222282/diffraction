@@ -5,19 +5,29 @@ use zene_structs::{Vector2, Vector3};
 
 use crate::{IntoF32, Slit};
 
-pub struct EMEnv<'a, T: Float>
+#[derive(Debug, Clone)]
+pub struct EMEnv<T: Float>
 {
-    pub slits: Vec<Slit<'a, T>>,
     pub screen: (Vector2<T>, Vector2<T>)
 }
 
-impl<'a, T> EMEnv<'a, T>
+impl<T> Default for EMEnv<T>
+    where T: Float + ConstZero
+{
+    fn default() -> Self
+    {
+        return Self {
+            screen: (Vector2::zero(), Vector2::zero())
+        };
+    }
+}
+
+impl<T> EMEnv<T>
     where T: Float + ConstOne + ConstZero + FloatConst + IntoF32
 {
     pub fn new(scr_a: Vector2<T>, scr_b: Vector2<T>) -> Self
     {
         return Self {
-            slits: Vec::new(),
             screen: (scr_a, scr_b)
         };
     }
@@ -29,7 +39,7 @@ impl<'a, T> EMEnv<'a, T>
         return a + ((b - a) * x);
     }
     
-    pub fn generate_pattern<S>(&self, wave_map: &[(T, Vector3<f32>)], samples: &mut [S])
+    pub fn generate_pattern<S>(&self, slits: &[Slit<'_, T>], wave_map: &[(T, Vector3<f32>)], samples: &mut [S])
         where S: From<Vector3<f32>>
     {
         let mut buffer: Vec<(T, Complex<T>)> = wave_map.iter().map(|w| (w.0, Complex::<T>::ZERO)).collect();
@@ -42,7 +52,7 @@ impl<'a, T> EMEnv<'a, T>
             let s_p = self.lerp(x);
             x = x + step;
             
-            for s in &self.slits
+            for s in slits
             {
                 s.calculate_intensity(s_p, &mut buffer);
             }
