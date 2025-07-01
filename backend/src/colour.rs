@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use bytemuck::{Pod, Zeroable};
 use zene_structs::{Vector3, Vector4};
 
@@ -23,6 +25,14 @@ impl Colour
     pub const fn rgb(r: f32, g: f32, b: f32) -> Self
     {
         return Self { r, g, b, a: 1.0 };
+    }
+}
+
+impl Display for Colour
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        return write!(f, "r:{}, g:{}, b:{}, a:{}", self.r, self.g, self.b, self.a);
     }
 }
 

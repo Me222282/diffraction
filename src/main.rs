@@ -15,9 +15,10 @@ use num::{complex::Complex32, Zero};
 use plot_element::plotter;
 use scene::{Scene, SceneUIData};
 use screen_element::screen;
+use scene_element::scene;
 use screen_renderer::SCREEN_SIZE;
 use wave_data::WaveData;
-use zene_structs::Vector4;
+use zene_structs::{Vector2, Vector4};
 
 pub const PLOTTER_SIZE: u32 = 200;
 pub const SPECTRUM_SIZE: u32 = 256;
@@ -222,6 +223,8 @@ fn update(state: &mut State, message: Message)
             state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         }
     }
+    
+    state.scene_ui.generate_lines(&state.scene, 5e7);
 }
 
 fn view(state: &State) -> Element<Message>
@@ -269,6 +272,10 @@ fn view(state: &State) -> Element<Message>
         slider(0.1..=10.0, state.exposure, Message::SetExpo).step(0.001)
             .width(Length::Fixed(SCREEN_SIZE as f32)));
     view = view.push(text(format!("Exposure: {:.3}", state.exposure)));
+    
+    view = view.push(
+        scene(&state.scene_ui.lines, 2.5e-10, Vector2::new(0.0, -0.5))
+        .width(Length::Fill).height(Length::Fill));
     
     return view.into();
 }

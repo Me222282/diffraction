@@ -1,27 +1,29 @@
-use backend::Colour;
 use iced::widget::{shader::Program, shader};
 use iced::widget::Shader;
 use iced::Rectangle;
+use zene_structs::Vector2;
 
-use crate::screen_renderer::{Screen, SCREEN_SIZE};
+use crate::scene::LineData;
+use crate::scene_renderer::SceneRender;
 
-pub fn scene<'a, Mesaage>(colours: &'a [Colour], exposure: f32) -> Shader<Mesaage, SceneEl<'a>>
+pub fn scene<'a, Mesaage>(lines: &'a [LineData], zoom: f32, pan: Vector2<f32>) -> Shader<Mesaage, SceneEl<'a>>
 {
     return shader(
-        SceneEl { colours, exposure }
-    ).width(SCREEN_SIZE as f32);
+        SceneEl { lines, zoom, pan }
+    );
 }
 
 pub struct SceneEl<'a>
 {
-    colours: &'a [Colour],
-    exposure: f32
+    lines: &'a [LineData],
+    zoom: f32,
+    pan: Vector2<f32>
 }
 
 impl<'a, Message> Program<Message> for SceneEl<'a>
 {
     type State = ();
-    type Primitive = Screen;
+    type Primitive = SceneRender;
 
     fn draw(
         &self,
@@ -29,7 +31,7 @@ impl<'a, Message> Program<Message> for SceneEl<'a>
         _cursor: iced::advanced::mouse::Cursor,
         _bounds: Rectangle) -> Self::Primitive
     {
-        return Screen::new(self.colours.to_vec(), self.exposure);
+        return SceneRender::new(self.lines.to_vec(), self.zoom, self.pan);
     }
     
     // fn update(

@@ -186,13 +186,19 @@ pub enum SceneUIRef
     Screen(bool)
 }
 
+#[repr(packed)]
+#[derive(Debug, Clone, Copy)]
+pub struct LineData(Vector2<f32>, Colour);
+unsafe impl bytemuck::Pod for LineData { }
+unsafe impl bytemuck::Zeroable for LineData {}
+
 #[derive(Debug, Clone, Default)]
 pub struct SceneUIData
 {
     pub selection: SceneUIRef,
     pub hover: SceneUIRef,
     pub ghost: Option<SceneSlit>,
-    pub lines: Vec<(Vector2<f32>, Colour)>
+    pub lines: Vec<LineData>
 }
 
 fn as_32(_64: Vector2<f64>) -> Vector2<f32>
@@ -204,7 +210,7 @@ impl SceneUIData
 {
     pub fn generate_lines(&mut self, scene: &Scene, sl: f32)
     {
-        let mut data = Vec::<(Vector2<f32>, Colour)>::with_capacity(scene.walls.len() * 4);
+        let mut data = Vec::<LineData>::with_capacity(scene.walls.len() * 4);
         
         let ghost = self.ghost.unwrap_or(SceneSlit { width: f64::NAN, position: f64::NAN });
         
@@ -231,14 +237,14 @@ impl SceneUIData
                 let b = p + x_off;
                 
                 // wall between slits
-                data.push((as_32(last), cw));
-                data.push((as_32(a), cw));
+                data.push(LineData(as_32(last), cw));
+                data.push(LineData(as_32(a), cw));
                 last = b;
                 
-                data.push((as_32(a + n), c));
-                data.push((as_32(a - n), c));
-                data.push((as_32(b + n), c));
-                data.push((as_32(b - n), c));
+                data.push(LineData(as_32(a + n), c));
+                data.push(LineData(as_32(a - n), c));
+                data.push(LineData(as_32(b + n), c));
+                data.push(LineData(as_32(b - n), c));
             };
             
             // assume slits sorted by position
@@ -254,9 +260,14 @@ impl SceneUIData
                 insert(s, cs);
             }
             
-            data.push((as_32(last), cw));
-            data.push((as_32(w.b), cw));
+            // finish wall
+            data.push(LineData(as_32(last), cw));
+            data.push(LineData(as_32(w.b), cw));
         }
+        
+        // screen
+        data.push(LineData(as_32(scene.env.screen.0), SCREEN));
+        data.push(LineData(as_32(scene.env.screen.1), SCREEN));
         
         self.lines = data;
     }
@@ -266,6 +277,7 @@ const NORM: Colour = Colour::rgb(1.0, 0.63529411764, 0.0);
 const SELECT: Colour = Colour::rgb(1.0, 0.80784313725, 0.47058823529);
 const HOVER: Colour = Colour::rgb(1.0, 0.83529411764, 0.0);
 const GHOST: Colour = Colour::new(1.0, 0.83529411764, 0.0, 0.5);
+const SCREEN: Colour = Colour::rgb(0.5, 0.5, 0.5);
 fn get_colour(i: usize, j: Option<usize>, select: SceneUIRef, hover: SceneUIRef) -> Colour
 {
     match (select, j)

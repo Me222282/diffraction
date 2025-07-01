@@ -1,37 +1,35 @@
 use std::fmt::Debug;
 
-use backend::Colour;
 use iced::widget::shader::wgpu::util::{BufferInitDescriptor, DeviceExt};
 use iced::widget::shader::wgpu::*;
 use iced::widget::shader::Primitive;
 use iced::Rectangle;
-use num::Zero;
-use zene_structs::{Matrix4, Vector2, Vector4};
+use num::{One, Zero};
+use zene_structs::{Matrix4, Vector2};
+
+use crate::scene::LineData;
 
 #[derive(Debug)]
-pub struct SceneRender<const ID: usize>
+pub struct SceneRender
 {
-    data: Vec<(Vector2<f32>, Colour)>,
-    // background: Vector4<f32>,
+    data: Vec<LineData>,
     zoom: f32,
     pan: Vector2<f32>
 }
 
-impl<const ID: usize> SceneRender<ID>
+impl SceneRender
 {
-    pub fn new(data: Vec<(Vector2<f32>, Colour)>, // background: Vector4<f32>,
-        zoom: f32, pan: Vector2<f32>) -> Self
+    pub fn new(data: Vec<LineData>, zoom: f32, pan: Vector2<f32>) -> Self
     {
         return Self {
             data,
-            // background,
             zoom,
             pan
         };
     }
 }
 
-impl<const ID: usize> Primitive for SceneRender<ID>
+impl Primitive for SceneRender
 {
     fn prepare(
         &self,
@@ -43,36 +41,34 @@ impl<const ID: usize> Primitive for SceneRender<ID>
         bounds: &Rectangle,
         _viewport: &iced::widget::shader::Viewport)
     {
-        let pipe = storage.get_mut::<ScenePipe<ID>>();
+        let pipe = storage.get_mut::<ScenePipe>();
         let pipe = match pipe
         {
             Some(lp) => lp,
             None =>
             {
-                let lp = ScenePipe::<ID>::new(device, format);
+                let lp = ScenePipe::new(device, format);
                 storage.store(lp);
-                storage.get_mut::<ScenePipe<ID>>().unwrap()
+                storage.get_mut::<ScenePipe>().unwrap()
             },
         };
         
-        let size = self.data.len() as u32;
-        
         let (width, height) = if bounds.width < bounds.height
         {
-            (1.0, bounds.height / bounds.width)
+            (1.0, bounds.width / bounds.height)
         } else
         {
-            (bounds.width / bounds.height, 1.0)
+            (bounds.height / bounds.width, 1.0)
         };
         
         let uni_dat = Uniform {
-            matrix: Matrix4::create_scale(self.zoom) *
-                Matrix4::create_translation_2(self.pan) *
-                Matrix4::create_orthographic(width, height, 0.0, 1.0),
-            // background: self.background
+            pan: self.pan,
+            scale: Vector2::new(width, height) * self.zoom
         };
         queue.write_buffer(&pipe.uniform_buffer, 0,
             bytemuck::cast_slice(&[uni_dat]));
+        
+        pipe.write_vertex(device, queue, &self.data);
     }
 
     fn render(
@@ -82,7 +78,7 @@ impl<const ID: usize> Primitive for SceneRender<ID>
         target: &iced::widget::shader::wgpu::TextureView,
         clip_bounds: &Rectangle<u32>)
     {
-        let pipe = storage.get::<ScenePipe<ID>>();
+        let pipe = storage.get::<ScenePipe>();
         match pipe
         {
             Some(pipe) =>
@@ -123,8 +119,8 @@ impl<const ID: usize> Primitive for SceneRender<ID>
 #[derive(Copy, Clone, Debug)]
 struct Uniform
 {
-    matrix: Matrix4<f32>,
-    // background: Vector4<f32>
+    pan: Vector2<f32>,
+    scale: Vector2<f32>
 }
 unsafe impl bytemuck::Pod for Uniform {}
 unsafe impl bytemuck::Zeroable for Uniform {}
@@ -133,22 +129,48 @@ impl Default for Uniform
     fn default() -> Self
     {
         Self {
-            matrix: Matrix4::identity(),
-            // background: Vector4::zero()
+            pan: Vector2::zero(),
+            scale: Vector2::one()
         }
     }
 }
 
-struct ScenePipe<const ID: usize>
+struct ScenePipe
 {
     render_pipeline: RenderPipeline,
     vertex_buffer: Buffer,
     uniform_buffer: Buffer,
-    bind_group: BindGroup
+    bind_group: BindGroup,
+    capacity: usize
 }
 
-impl<const ID: usize> ScenePipe<ID>
+impl ScenePipe
 {
+    pub fn write_vertex(&mut self,
+        device: &iced::widget::shader::wgpu::Device,
+        queue: &iced::widget::shader::wgpu::Queue,
+        data: &[LineData])
+    {
+        let len = data.len();
+        if self.capacity < len
+        {
+            self.capacity = len;
+            // recreate buffer
+            self.vertex_buffer.destroy();
+            self.vertex_buffer = device.create_buffer_init(
+                &util::BufferInitDescriptor {
+                    label: Some("scene.verts"),
+                    contents: bytemuck::cast_slice(data),
+                    usage: BufferUsages::VERTEX | BufferUsages::COPY_DST
+                }
+            );
+            return;
+        }
+        
+        queue.write_buffer(&self.vertex_buffer, 0,
+            bytemuck::cast_slice(data));
+    }
+    
     pub fn new(
         device: &iced::widget::shader::wgpu::Device,
         format: iced::widget::shader::wgpu::TextureFormat) -> Self
@@ -164,7 +186,7 @@ impl<const ID: usize> ScenePipe<ID>
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    visibility: ShaderStages::VERTEX,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -185,7 +207,7 @@ impl<const ID: usize> ScenePipe<ID>
             ]
         });
         
-        let shader = device.create_shader_module(include_wgsl!("line_shader.wgsl"));
+        let shader = device.create_shader_module(include_wgsl!("norm_shader.wgsl"));
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("scene.rp.lay"),
             bind_group_layouts: &[&bind_group_layout],
@@ -201,9 +223,9 @@ impl<const ID: usize> ScenePipe<ID>
         );
         
         let buffer_layout = VertexBufferLayout {
-            array_stride: std::mem::size_of::<[f32; 4]>() as BufferAddress,
+            array_stride: std::mem::size_of::<[f32; 6]>() as BufferAddress,
             step_mode: VertexStepMode::Vertex,
-            attributes: &vertex_attr_array![0 => Float32x2, 1 => Float32x2]
+            attributes: &vertex_attr_array![0 => Float32x2, 1 => Float32x4]
         };
         
         let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -225,8 +247,7 @@ impl<const ID: usize> ScenePipe<ID>
                 })]
             }),
             primitive: PrimitiveState {
-                topology: PrimitiveTopology::TriangleStrip,
-                front_face: FrontFace::Cw,
+                topology: PrimitiveTopology::LineList,
                 ..Default::default()
             },
             depth_stencil: None,
@@ -242,7 +263,8 @@ impl<const ID: usize> ScenePipe<ID>
             render_pipeline,
             vertex_buffer,
             uniform_buffer,
-            bind_group
+            bind_group,
+            capacity: 0
         };
     }
 }
