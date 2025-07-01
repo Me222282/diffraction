@@ -5,6 +5,7 @@ mod screen_renderer;
 mod wave_data;
 mod scene;
 mod scene_element;
+mod scene_renderer;
 
 use std::f32::consts::{PI, TAU};
 

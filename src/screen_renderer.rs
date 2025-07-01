@@ -86,7 +86,7 @@ impl Primitive for Screen
             Some(pipe) =>
             {
                 let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                    label: Some("lines.render"),
+                    label: Some("screen.render"),
                     color_attachments: &[Some(RenderPassColorAttachment {
                         view: &target,
                         resolve_target: None,

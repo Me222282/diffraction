@@ -192,7 +192,7 @@ pub struct SceneUIData
     pub selection: SceneUIRef,
     pub hover: SceneUIRef,
     pub ghost: Option<SceneSlit>,
-    pub lines: Box<[(Vector2<f32>, Colour)]>
+    pub lines: Vec<(Vector2<f32>, Colour)>
 }
 
 fn as_32(_64: Vector2<f64>) -> Vector2<f32>
@@ -258,7 +258,7 @@ impl SceneUIData
             data.push((as_32(w.b), cw));
         }
         
-        self.lines = data.into_boxed_slice();
+        self.lines = data;
     }
 }
 
