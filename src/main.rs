@@ -7,14 +7,15 @@ mod scene;
 
 use std::f32::consts::{PI, TAU};
 
-use backend::{Colour, EMEnv, Slit, WCache, Wave};
+use backend::{Colour, WCache};
 use iced::{widget::{button, column, row, slider, text, toggler}, Alignment, Element, Length, Padding};
 use num::{complex::Complex32, Zero};
 use plot_element::plotter;
+use scene::{Scene, SceneUIData};
 use screen_element::screen;
 use screen_renderer::SCREEN_SIZE;
 use wave_data::WaveData;
-use zene_structs::{Vector2, Vector3, Vector4};
+use zene_structs::Vector4;
 
 pub const PLOTTER_SIZE: u32 = 200;
 pub const SPECTRUM_SIZE: u32 = 256;
@@ -49,7 +50,9 @@ struct State
     last_point: (usize, f32),
     view_phase: bool,
     colours: Box<[Colour]>,
-    exposure: f32
+    exposure: f32,
+    scene: Scene,
+    scene_ui: SceneUIData
 }
 impl Default for State
 {
@@ -64,20 +67,11 @@ impl Default for State
             wn: WCache::<f32>::new(true),
             last_point: Default::default(),
             colours: vec![Colour::ZERO; SCREEN_SIZE as usize].into_boxed_slice(),
-            exposure: 1.0
+            exposure: 1.0,
+            scene: Default::default(),
+            scene_ui: Default::default()
         }
     }
-}
-
-fn colours(colours: &mut [Colour], plot: &WaveData)
-{
-    // let mut env = EMEnv::<f64>::new(
-    //     Vector2::new(-2e9, 2e9),
-    //     Vector2::new(2e9, 2e9));
-    // let waves = get_waves(&plot.spectrum, &plot.wave_map);
-    // env.slits.push(Slit::new(156.0, Vector2::new(-1000.0, 0.0), Vector2::new(0.0, 1.0), &waves));
-    // env.slits.push(Slit::new(156.0, Vector2::new(1000.0, 0.0), Vector2::new(0.0, 1.0), &waves));
-    // env.generate_pattern(&plot.wave_map, colours);
 }
 
 fn tri(p: f32) -> f32
@@ -103,54 +97,75 @@ fn update(state: &mut State, message: Message)
         {
             state.view_phase = v;
             state.plot.set_phase(v);
-            colours(&mut state.colours, &state.plot);
         }
         Message::PlotSize(size) =>
         {
             state.plot.resize(size);
             state.plot.compute_dft(&mut state.wn);
+            
+            state.scene.compute_waves(&state.plot);
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::PlotWave(i, v) =>
         {
             state.plot.set_plot_point(i, v);
             state.plot.compute_dft(&mut state.wn);
             state.last_point = (i, v);
+            
+            state.scene.compute_waves(&state.plot);
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::DragWave(i, v) =>
         {
             state.plot.set_plot_line(state.last_point, (i, v));
             state.plot.compute_dft(&mut state.wn);
             state.last_point = (i, v);
+            
+            state.scene.compute_waves(&state.plot);
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::PlotFreq(i, v) =>
         {
             state.plot.set_spec_point(i, v);
             state.plot.compute_plot(&mut state.wn);
             state.last_point = (i, v);
+            
+            state.scene.compute_waves(&state.plot);
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::DragFreq(i, v) =>
         {
             state.plot.set_spec_line(state.last_point, (i, v));
             state.plot.compute_plot(&mut state.wn);
             state.last_point = (i, v);
+            
+            state.scene.compute_waves(&state.plot);
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::PlotPhase(i, v) =>
         {
             state.plot.set_phase_point(i, v);
             state.plot.compute_plot(&mut state.wn);
             state.last_point = (i, v);
+            
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::DragPhase(i, v) =>
         {
             state.plot.set_phase_line(state.last_point, (i, v));
             state.plot.compute_plot(&mut state.wn);
             state.last_point = (i, v);
+            
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::Clear =>
         {
             state.plot.wave.fill(0.0);
             state.plot.dft.fill(Complex32::ZERO);
             state.plot.update_spec_phase();
+            
+            state.scene.compute_waves(&state.plot);
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::FillSine =>
         {
@@ -162,6 +177,8 @@ fn update(state: &mut State, message: Message)
                 t += step;
             }
             state.plot.compute_dft(&mut state.wn);
+            state.scene.compute_waves(&state.plot);
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::FillTriangle =>
         {
@@ -173,6 +190,8 @@ fn update(state: &mut State, message: Message)
                 t += step;
             }
             state.plot.compute_dft(&mut state.wn);
+            state.scene.compute_waves(&state.plot);
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::FillSaw =>
         {
@@ -184,6 +203,8 @@ fn update(state: &mut State, message: Message)
                 t += step;
             }
             state.plot.compute_dft(&mut state.wn);
+            state.scene.compute_waves(&state.plot);
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         },
         Message::FillSquare =>
         {
@@ -195,6 +216,8 @@ fn update(state: &mut State, message: Message)
                 t += step;
             }
             state.plot.compute_dft(&mut state.wn);
+            state.scene.compute_waves(&state.plot);
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         }
     }
 }
