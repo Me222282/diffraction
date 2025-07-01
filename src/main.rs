@@ -1,9 +1,10 @@
 mod plot_element;
-mod line_renderer;
+mod plot_renderer;
 mod screen_element;
 mod screen_renderer;
 mod wave_data;
 mod scene;
+mod scene_element;
 
 use std::f32::consts::{PI, TAU};
 

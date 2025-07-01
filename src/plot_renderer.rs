@@ -24,7 +24,7 @@ impl TextureData for [f32; 4]
 }
 
 #[derive(Debug)]
-pub struct Lines<D: TextureData, const ID: usize>
+pub struct PlotRender<D: TextureData, const ID: usize>
 {
     data: Vec<D>,
     foreground: Vector4<f32>,
@@ -34,7 +34,7 @@ pub struct Lines<D: TextureData, const ID: usize>
     uv_offset: f32
 }
 
-impl<D: TextureData, const ID: usize> Lines<D, ID>
+impl<D: TextureData, const ID: usize> PlotRender<D, ID>
 {
     pub fn new(data: Vec<D>, foreground: Vector4<f32>,
         background: Vector4<f32>, scale: f32, uv_scale: f32, uv_offset: f32) -> Self
@@ -50,7 +50,7 @@ impl<D: TextureData, const ID: usize> Lines<D, ID>
     }
 }
 
-impl<D: TextureData, const ID: usize> Primitive for Lines<D, ID>
+impl<D: TextureData, const ID: usize> Primitive for PlotRender<D, ID>
     where D: Debug + Send + Sync + NoUninit + 'static
 {
     fn prepare(

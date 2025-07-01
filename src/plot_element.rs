@@ -9,7 +9,7 @@ use iced::widget::Shader;
 use iced::{Point, Rectangle};
 use zene_structs::Vector4;
 
-use crate::line_renderer::{Lines, TextureData};
+use crate::plot_renderer::{PlotRender, TextureData};
 
 pub fn plotter<'a, S, F, G, D: TextureData, Message, const ID: usize>(on_size: Option<S>, on_place: F,
     on_drag: G, data: &'a [D], data_range: Range<f32>, colour: Vector4<f32>) -> Shader<Message, Plot<'a, S, F, G, D, Message, ID>>
@@ -58,7 +58,7 @@ impl<'a, S, F, G, D: TextureData, Message, const ID: usize> Program<Message> for
         D: Debug + Send + Sync + NoUninit + 'static
 {
     type State = bool;
-    type Primitive = Lines<D, ID>;
+    type Primitive = PlotRender<D, ID>;
 
     fn draw(
         &self,
@@ -66,7 +66,7 @@ impl<'a, S, F, G, D: TextureData, Message, const ID: usize> Program<Message> for
         _cursor: iced::advanced::mouse::Cursor,
         _bounds: Rectangle) -> Self::Primitive
     {
-        return Lines::new(
+        return PlotRender::new(
             self.data.to_vec(), self.colour,
             Vector4::new(0.0, 0.0, 0.0, 1.0), self.scale, self.uv_scale, self.uv_offset);
     }
