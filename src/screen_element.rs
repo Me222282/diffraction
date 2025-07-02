@@ -5,7 +5,7 @@ use iced::Rectangle;
 
 use crate::screen_renderer::{Screen, SCREEN_SIZE};
 
-pub fn screen<'a, Mesaage>(colours: &'a [Colour], exposure: f32) -> Shader<Mesaage, ScreenEl<'a>>
+pub fn screen<'a, Message>(colours: &'a [Colour], exposure: f32) -> Shader<Message, ScreenEl<'a>>
 {
     return shader(
         ScreenEl { colours, exposure }

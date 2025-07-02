@@ -10,7 +10,7 @@ mod scene_renderer;
 use std::f32::consts::{PI, TAU};
 
 use backend::{Colour, WCache};
-use iced::{widget::{button, column, row, slider, text, toggler}, Alignment, Element, Length, Padding};
+use iced::{widget::{button, column, container, container::Style, row, slider, text, toggler}, Alignment, Background, Color, Element, Length, Padding};
 use num::{complex::Complex32, Zero};
 use plot_element::plotter;
 use scene::{Scene, SceneUIData};
@@ -42,7 +42,10 @@ enum Message
     FillTriangle,
     FillSaw,
     FillSquare,
-    Clear
+    Clear,
+    
+    ZoomScene(f32, Vector2<f32>),
+    PanScene(Vector2<f32>)
 }
 
 #[derive(Debug, Clone)]
@@ -64,6 +67,8 @@ impl Default for State
         let mut plot = WaveData::default();
         plot.set_scale(1.0);
         
+        let scene = Scene::default();
+        let scene_ui = SceneUIData::new(&scene, 0.025, 2.5e-10, Vector2::new(0.0, -0.5));
         return Self {
             view_phase: false,
             plot,
@@ -71,8 +76,8 @@ impl Default for State
             last_point: Default::default(),
             colours: vec![Colour::ZERO; SCREEN_SIZE as usize].into_boxed_slice(),
             exposure: 1.0,
-            scene: Default::default(),
-            scene_ui: Default::default()
+            scene,
+            scene_ui
         }
     }
 }
@@ -222,9 +227,18 @@ fn update(state: &mut State, message: Message)
             state.scene.compute_waves(&state.plot);
             state.scene.simulate(&state.plot.wave_map, &mut state.colours);
         }
+        Message::ZoomScene(zoom, pan) =>
+        {
+            state.scene_ui.zoom = zoom;
+            state.scene_ui.pan = pan;
+            
+            state.scene_ui.generate_lines(&state.scene, 0.025);
+        },
+        Message::PanScene(pan) =>
+        {
+            state.scene_ui.pan = pan;
+        }
     }
-    
-    state.scene_ui.generate_lines(&state.scene, 5e7);
 }
 
 fn view(state: &State) -> Element<Message>
@@ -274,8 +288,9 @@ fn view(state: &State) -> Element<Message>
     view = view.push(text(format!("Exposure: {:.3}", state.exposure)));
     
     view = view.push(
-        scene(&state.scene_ui.lines, 2.5e-10, Vector2::new(0.0, -0.5))
-        .width(Length::Fill).height(Length::Fill));
+        container(scene(&state.scene_ui.lines, state.scene_ui.zoom, state.scene_ui.pan, Message::ZoomScene, Message::PanScene)
+        .width(Length::Fill).height(Length::Fill)).center(Length::Fill)
+        .style(|_| Style::default().background(Background::Color(Color::from_rgb(0.15, 0.15, 0.15)))));
     
     return view.into();
 }

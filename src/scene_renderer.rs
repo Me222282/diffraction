@@ -5,7 +5,7 @@ use iced::widget::shader::wgpu::*;
 use iced::widget::shader::Primitive;
 use iced::Rectangle;
 use num::{One, Zero};
-use zene_structs::{Matrix4, Vector2};
+use zene_structs::Vector2;
 
 use crate::scene::LineData;
 
@@ -62,7 +62,7 @@ impl Primitive for SceneRender
         };
         
         let uni_dat = Uniform {
-            pan: self.pan,
+            pan: Vector2::new(width, height) * self.pan,
             scale: Vector2::new(width, height) * self.zoom
         };
         queue.write_buffer(&pipe.uniform_buffer, 0,

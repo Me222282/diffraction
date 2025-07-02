@@ -192,13 +192,15 @@ pub struct LineData(Vector2<f32>, Colour);
 unsafe impl bytemuck::Pod for LineData { }
 unsafe impl bytemuck::Zeroable for LineData {}
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct SceneUIData
 {
     pub selection: SceneUIRef,
     pub hover: SceneUIRef,
     pub ghost: Option<SceneSlit>,
-    pub lines: Vec<LineData>
+    pub lines: Vec<LineData>,
+    pub zoom: f32,
+    pub pan: Vector2<f32>
 }
 
 fn as_32(_64: Vector2<f64>) -> Vector2<f32>
@@ -208,6 +210,21 @@ fn as_32(_64: Vector2<f64>) -> Vector2<f32>
 
 impl SceneUIData
 {
+    pub fn new(scene: &Scene, sl: f32, zoom: f32, pan: Vector2<f32>) -> Self
+    {
+        let mut this = Self {
+            selection: Default::default(),
+            hover: Default::default(),
+            ghost: Default::default(),
+            lines: Vec::new(),
+            zoom,
+            pan
+        };
+        
+        this.generate_lines(scene, sl);
+        return this;
+    }
+    
     pub fn generate_lines(&mut self, scene: &Scene, sl: f32)
     {
         let mut data = Vec::<LineData>::with_capacity(scene.walls.len() * 4);
@@ -217,7 +234,7 @@ impl SceneUIData
         for (i, w) in scene.walls.iter().enumerate()
         {
             let d = w.dir;
-            let n = w.dir.rotated_90() * (sl as f64);
+            let n = w.dir.rotated_90() * ((sl / self.zoom) as f64);
             
             let g_here = match self.hover
             {
