@@ -1,7 +1,6 @@
 use core::f64;
 
 use backend::{Colour, EMEnv, Slit, Wave};
-use num::Zero;
 use zene_structs::{Vector2, Vector3, Vector};
 
 use crate::wave_data::WaveData;
@@ -12,26 +11,13 @@ pub struct SceneSlit
     pub width: f64,
     pub position: f64
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Wall
 {
     a: Vector2<f64>,
     b: Vector2<f64>,
     dir: Vector2<f64>,
     slits: Vec<SceneSlit>
-}
-
-impl Default for Wall
-{
-    fn default() -> Self
-    {
-        return Self {
-            a: Vector2::zero(),
-            b: Vector2::zero(),
-            dir: Vector2::zero(),
-            slits: Default::default()
-        };
-    }
 }
 
 impl Wall
@@ -186,7 +172,7 @@ pub enum SceneUIRef
     Screen(bool)
 }
 
-#[repr(packed)]
+#[repr(packed, C)]
 #[derive(Debug, Clone, Copy)]
 pub struct LineData(Vector2<f32>, Colour);
 unsafe impl bytemuck::Pod for LineData { }

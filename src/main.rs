@@ -22,6 +22,7 @@ use zene_structs::{Vector2, Vector4};
 
 pub const PLOTTER_SIZE: u32 = 200;
 pub const SPECTRUM_SIZE: u32 = 256;
+pub const SL: f32 = 0.05;
 
 #[derive(Debug, Clone)]
 enum Message
@@ -68,7 +69,7 @@ impl Default for State
         plot.set_scale(1.0);
         
         let scene = Scene::default();
-        let scene_ui = SceneUIData::new(&scene, 0.025, 2.5e-10, Vector2::new(0.0, -0.5));
+        let scene_ui = SceneUIData::new(&scene, SL, 2.5e-10, Vector2::new(0.0, -0.5));
         return Self {
             view_phase: false,
             plot,
@@ -232,7 +233,7 @@ fn update(state: &mut State, message: Message)
             state.scene_ui.zoom = zoom;
             state.scene_ui.pan = pan;
             
-            state.scene_ui.generate_lines(&state.scene, 0.025);
+            state.scene_ui.generate_lines(&state.scene, SL);
         },
         Message::PanScene(pan) =>
         {

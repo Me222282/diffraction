@@ -5,21 +5,10 @@ use zene_structs::{Vector2, Vector3};
 
 use crate::{IntoF32, Slit};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct EMEnv<T: Float>
 {
     pub screen: (Vector2<T>, Vector2<T>)
-}
-
-impl<T> Default for EMEnv<T>
-    where T: Float + ConstZero
-{
-    fn default() -> Self
-    {
-        return Self {
-            screen: (Vector2::zero(), Vector2::zero())
-        };
-    }
 }
 
 impl<T> EMEnv<T>
