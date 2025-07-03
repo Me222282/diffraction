@@ -10,7 +10,8 @@ mod scene_renderer;
 use std::f32::consts::{PI, TAU};
 
 use backend::{Colour, WCache};
-use iced::{widget::{button, column, container, container::Style, row, slider, text, toggler}, Alignment, Background, Color, Element, Length, Padding};
+use iced::widget::{container, horizontal_rule};
+use iced::{widget::{button, column, container::Style, row, slider, text, toggler, vertical_slider, Space}, Alignment, Background, Color, Element, Length, Padding};
 use num::{complex::Complex32, Zero};
 use plot_element::plotter;
 use scene::{Scene, SceneUIData};
@@ -69,7 +70,7 @@ impl Default for State
         plot.set_scale(1.0);
         
         let scene = Scene::default();
-        let scene_ui = SceneUIData::new(&scene, SL, 2.5e-10, Vector2::new(0.0, -0.5));
+        let scene_ui = SceneUIData::new(&scene, SL, 2.5e-10, Vector2::zero());
         return Self {
             view_phase: false,
             plot,
@@ -244,58 +245,81 @@ fn update(state: &mut State, message: Message)
 
 fn view(state: &State) -> Element<Message>
 {
-    let spec_scale = state.plot.get_scale();
     let plot = &state.plot;
-    let mut view = column![
-        row![
-            button("Sine").on_press(Message::FillSine),
-            button("Triangle").on_press(Message::FillTriangle),
-            button("Saw").on_press(Message::FillSaw),
-            button("Square").on_press(Message::FillSquare),
-            button("Clear").on_press(Message::Clear),
-            toggler(state.view_phase)
-                .label("Phase")
-                .on_toggle(Message::ViewPhase)
-        ].spacing(10)
-            .align_y(Alignment::Center)
-            .padding(Padding::new(5.0)),
-            
-        plotter::<_, _, _, _, _, 0>(Some(Message::PlotSize), Message::PlotWave, Message::DragWave,
-            &plot.wave, -1.0..1.0, Vector4::new(1.0, 0.0, 0.0, 1.0))
-            .width(Length::Fixed(PLOTTER_SIZE as f32)),
-            
-        plotter::<fn(usize) -> Message, _, _, _, _, 1>(None, Message::PlotFreq, Message::DragFreq,
-            &plot.spectrum, 0.0..1.0, Vector4::zero())
-            .width(Length::Fixed(SPECTRUM_SIZE as f32)),
-            
-        slider(1.0..=5.0, spec_scale, Message::SetScale).step(0.01)
-            .width(Length::Fixed(SPECTRUM_SIZE as f32)),
-        text(format!("Spectrum Scale: {spec_scale:.2}"))
-    ].spacing(10)
-    .align_x(Alignment::Center)
-    .padding(Padding::new(5.0));
-    
-    if state.view_phase
+    let phase_el: Element<Message> = if state.view_phase
     {
-        view = view.push(
-            plotter::<fn(usize) -> Message, _, _, _, _, 2>(None, Message::PlotPhase, Message::DragPhase,
-                &plot.phase, -PI..PI, Vector4::new(0.0, 1.0, 1.0, 1.0))
-                .width(Length::Fixed(SPECTRUM_SIZE as f32)));
+        plotter::<fn(usize) -> Message, _, _, _, _, 2>(None, Message::PlotPhase, Message::DragPhase,
+            &plot.phase, -PI..PI, Vector4::new(0.0, 1.0, 1.0, 1.0))
+            .width(Length::Fixed(SPECTRUM_SIZE as f32)).into()
     }
-    view = view.push(screen(&state.colours, state.exposure));
-    view = view.push(
-        slider(0.1..=10.0, state.exposure, Message::SetExpo).step(0.001)
-            .width(Length::Fixed(SCREEN_SIZE as f32)));
-    view = view.push(text(format!("Exposure: {:.3}", state.exposure)));
+    else
+    {
+        Space::new(Length::Fixed(0.0), Length::Fixed(0.0)).into()
+    };
     
-    view = view.push(
-        container(scene(&state.scene_ui.lines, state.scene_ui.zoom, state.scene_ui.pan, Message::ZoomScene, Message::PanScene)
-        .width(Length::Fill).height(Length::Fill)).center(Length::Fill)
-        .style(|_| Style::default().background(Background::Color(Color::from_rgb(0.15, 0.15, 0.15)))));
+    let spec_scale = state.plot.get_scale();
+    let view = row![
+        column![
+            screen(&state.colours, state.exposure),
+            row![
+                text(format!("Exposure: {:.3}", state.exposure)),
+                slider(0.1..=10.0, state.exposure, Message::SetExpo).step(0.001)
+                    .width(Length::Fill)
+            ].spacing(10).width(Length::Fixed(SCREEN_SIZE as f32))
+                .align_y(Alignment::Center)
+                .padding(Padding::new(5.0)),
+            container(scene(&state.scene_ui.lines, state.scene_ui.zoom, state.scene_ui.pan, Message::ZoomScene, Message::PanScene)
+                .width(Length::Fill).height(Length::Fill)).center(Length::Fill)
+                .style(|_| Style::default().background(Background::Color(Color::from_rgb(0.15, 0.15, 0.15))))  
+        ].spacing(10)
+            .align_x(Alignment::Center)
+            .padding(Padding::new(5.0)),
+        column![
+            row![
+                button("Sine").on_press(Message::FillSine),
+                button("Triangle").on_press(Message::FillTriangle),
+                button("Saw").on_press(Message::FillSaw),
+                button("Square").on_press(Message::FillSquare),
+                button("Clear").on_press(Message::Clear),
+                toggler(state.view_phase)
+                    .label("Phase")
+                    .on_toggle(Message::ViewPhase)
+            ].spacing(10)
+                .align_y(Alignment::Center)
+                .padding(Padding::new(5.0)),
+                
+            plotter::<_, _, _, _, _, 0>(Some(Message::PlotSize), Message::PlotWave, Message::DragWave,
+                &plot.wave, -1.0..1.0, Vector4::new(1.0, 0.0, 0.0, 1.0))
+                .width(Length::Fixed(PLOTTER_SIZE as f32)),
+            
+            row![
+                plotter::<fn(usize) -> Message, _, _, _, _, 1>(None, Message::PlotFreq, Message::DragFreq,
+                    &plot.spectrum, 0.0..1.0, Vector4::zero())
+                    .width(Length::Fixed(SPECTRUM_SIZE as f32)),
+                
+                column![
+                    vertical_slider(1.0..=5.0, spec_scale, Message::SetScale).step(0.01)
+                        .height(Length::Fill),
+                    text(format!("{spec_scale:.2}"))
+                ].align_x(Alignment::Center).height(Length::Fill)
+            ].spacing(10).height(Length::Shrink)
+                .align_y(Alignment::Center)
+                .padding(Padding::new(5.0)),
+            
+            phase_el,
+            horizontal_rule(2)
+        ].spacing(10).width(Length::Shrink)
+            .align_x(Alignment::Center)
+            .padding(Padding::new(5.0))
+    ].spacing(10)
+    .align_y(Alignment::Start)
+    .padding(Padding::new(5.0));
     
     return view.into();
 }
 
 fn main() {
-    let _ = iced::run("Plotter", update, view);
+    let _ = iced::application("Plotter", update, view)
+        .theme(|_| iced::Theme::Dark)
+        .run();
 }

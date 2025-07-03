@@ -101,12 +101,12 @@ impl Default for Scene
     {
         return Self {
             env: EMEnv::new(
-                Vector2::new(-2e9, 2e9),
-                Vector2::new(2e9, 2e9)),
+                Vector2::new(-2e9, 1e9),
+                Vector2::new(2e9, 1e9)),
             waves: Default::default(),
             walls: vec![Wall {
-                a: Vector2::new(-1e9, 0.0),
-                b: Vector2::new(1e9, 0.0),
+                a: Vector2::new(-1e9, -1e9),
+                b: Vector2::new(1e9, -1e9),
                 dir: Vector2::new(1.0, 0.0),
                 slits: vec![SceneSlit { width: 1560.0, position: 1e9}]
             }]
@@ -118,13 +118,14 @@ impl Scene
 {
     pub fn compute_waves(&mut self, wd: &WaveData)
     {
+        let scale = wd.get_scale();
         // skip waves with no amplitude
         let waves = wd.spectrum.iter().zip(wd.wave_map.iter()).filter(|(a, _)|
         {
             return a[0] > 0.0;
         }).map(|(a, w)|
         {
-            return Wave::<f64>::new(w.0, a[0] as f64);
+            return Wave::<f64>::new(w.0, (a[0] / scale) as f64);
         });
         
         self.waves = waves.collect::<Box<[Wave<f64>]>>();

@@ -103,26 +103,29 @@ impl<'a, Message, Z, P> Program<Message> for SceneEl<'a, Message, Z, P>
             },
             Event::Mouse(iced::mouse::Event::WheelScrolled { delta }) =>
             {
-                match delta
+                if state.panning || cursor.is_over(bounds)
                 {
-                    ScrollDelta::Lines { x: _, y } =>
-                    'new_zoom: {
-                        let nz = self.zoom + (y * 0.1 * self.zoom);
+                    match delta
+                    {
+                        ScrollDelta::Lines { x: _, y } =>
+                        'new_zoom: {
+                            let nz = self.zoom + (y * 0.1 * self.zoom);
 
-                        if nz < 0.0 { break 'new_zoom; }
-                        
-                        let mp = cursor.position_from(bounds.center()).unwrap_or(Default::default());
-                        
-                        let pan = self.pan * pan_div;
-                        let mp = Vector2::<f32>::new(mp.x, -mp.y);
-                        
-                        let point_rel_old = (mp - pan) / self.zoom;
-                        let point_rel_new = (mp - pan) / nz;
+                            if nz < 0.0 { break 'new_zoom; }
+                            
+                            let mp = cursor.position_from(bounds.center()).unwrap_or(Default::default());
+                            
+                            let pan = self.pan * pan_div;
+                            let mp = Vector2::<f32>::new(mp.x, -mp.y);
+                            
+                            let point_rel_old = (mp - pan) / self.zoom;
+                            let point_rel_new = (mp - pan) / nz;
 
-                        let np = pan + (point_rel_new - point_rel_old) * nz;
-                        return (Status::Captured, Some((self.on_zoom)(nz, np / pan_div)));
+                            let np = pan + (point_rel_new - point_rel_old) * nz;
+                            return (Status::Captured, Some((self.on_zoom)(nz, np / pan_div)));
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
             },
             _ => {}
