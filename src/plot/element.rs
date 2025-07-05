@@ -9,10 +9,10 @@ use iced::widget::Shader;
 use iced::{Point, Rectangle};
 use zene_structs::Vector4;
 
-use crate::plot::renderer::{PlotRender, TextureData};
+use super::renderer::{PlotRender, TextureData};
 
 pub fn plotter<'a, S, F, G, D: TextureData, Message, const ID: usize>(on_size: Option<S>, on_place: F,
-    on_drag: G, data: &'a [D], data_range: Range<f32>, colour: Vector4<f32>) -> Shader<Message, Plot<'a, S, F, G, D, Message, ID>>
+    on_drag: G, data: &'a [D], data_range: Range<f32>, colour: Vector4) -> Shader<Message, Plot<'a, S, F, G, D, Message, ID>>
     where S: Fn(usize) -> Message,
         F: Fn(usize, f32) -> Message,
         G: Fn(usize, f32) -> Message,
@@ -41,7 +41,7 @@ pub struct Plot<'a, S, F, G, D: TextureData, Message, const ID: usize>
         F: Fn(usize, f32) -> Message,
         G: Fn(usize, f32) -> Message
 {
-    colour: Vector4<f32>,
+    colour: Vector4,
     on_size: Option<S>,
     on_place: F,
     on_drag: G,

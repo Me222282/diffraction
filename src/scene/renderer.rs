@@ -7,19 +7,19 @@ use iced::Rectangle;
 use num::{One, Zero};
 use zene_structs::Vector2;
 
-use crate::scene::LineData;
+use super::LineData;
 
 #[derive(Debug)]
 pub struct SceneRender
 {
     data: Vec<LineData>,
     zoom: f32,
-    pan: Vector2<f32>
+    pan: Vector2
 }
 
 impl SceneRender
 {
-    pub fn new(data: Vec<LineData>, zoom: f32, pan: Vector2<f32>) -> Self
+    pub fn new(data: Vec<LineData>, zoom: f32, pan: Vector2) -> Self
     {
         return Self {
             data,
@@ -119,8 +119,8 @@ impl Primitive for SceneRender
 #[derive(Copy, Clone, Debug)]
 struct Uniform
 {
-    pan: Vector2<f32>,
-    scale: Vector2<f32>
+    pan: Vector2,
+    scale: Vector2
 }
 unsafe impl bytemuck::Pod for Uniform {}
 unsafe impl bytemuck::Zeroable for Uniform {}

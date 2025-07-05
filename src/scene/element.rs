@@ -6,13 +6,13 @@ use iced::widget::Shader;
 use iced::{Point, Rectangle};
 use zene_structs::Vector2;
 
-use crate::scene::LineData;
-use crate::scene::renderer::SceneRender;
+use super::LineData;
+use super::renderer::SceneRender;
 
-pub fn scene<'a, Message, Z, P>(lines: &'a [LineData], zoom: f32, pan: Vector2<f32>,
+pub fn scene<'a, Message, Z, P>(lines: &'a [LineData], zoom: f32, pan: Vector2,
     on_zoom: Z, on_pan: P) -> Shader<Message, SceneEl<'a, Message, Z, P>>
-    where Z: Fn(f32, Vector2<f32>) -> Message,
-        P: Fn(Vector2<f32>) -> Message
+    where Z: Fn(f32, Vector2) -> Message,
+        P: Fn(Vector2) -> Message
 {
     return shader(
         SceneEl { lines, zoom, pan, on_zoom, on_pan }
@@ -20,12 +20,12 @@ pub fn scene<'a, Message, Z, P>(lines: &'a [LineData], zoom: f32, pan: Vector2<f
 }
 
 pub struct SceneEl<'a, Message, Z, P>
-    where Z: Fn(f32, Vector2<f32>) -> Message,
-        P: Fn(Vector2<f32>) -> Message
+    where Z: Fn(f32, Vector2) -> Message,
+        P: Fn(Vector2) -> Message
 {
     lines: &'a [LineData],
     zoom: f32,
-    pan: Vector2<f32>,
+    pan: Vector2,
     on_zoom: Z,
     on_pan: P
 }
@@ -38,8 +38,8 @@ pub struct State
 }
 
 impl<'a, Message, Z, P> Program<Message> for SceneEl<'a, Message, Z, P>
-    where Z: Fn(f32, Vector2<f32>) -> Message,
-        P: Fn(Vector2<f32>) -> Message
+    where Z: Fn(f32, Vector2) -> Message,
+        P: Fn(Vector2) -> Message
 {
     type State = State;
     type Primitive = SceneRender;
@@ -61,7 +61,7 @@ impl<'a, Message, Z, P> Program<Message> for SceneEl<'a, Message, Z, P>
         cursor: iced::advanced::mouse::Cursor,
         _shell: &mut iced::advanced::Shell<'_, Message>) -> (Status, Option<Message>)
     {
-        let centre = Vector2::<f32>::new(bounds.width * 0.5, bounds.height * -0.5);
+        let centre = Vector2::new(bounds.width * 0.5, bounds.height * -0.5);
         let pan_div = if bounds.width < bounds.height
         {
             centre.x
@@ -116,7 +116,7 @@ impl<'a, Message, Z, P> Program<Message> for SceneEl<'a, Message, Z, P>
                             let mp = cursor.position_from(bounds.center()).unwrap_or(Default::default());
                             
                             let pan = self.pan * pan_div;
-                            let mp = Vector2::<f32>::new(mp.x, -mp.y);
+                            let mp = Vector2::new(mp.x, -mp.y);
                             
                             let point_rel_old = (mp - pan) / self.zoom;
                             let point_rel_new = (mp - pan) / nz;

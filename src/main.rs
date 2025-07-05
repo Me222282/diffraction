@@ -42,8 +42,8 @@ enum Message
     FillSquare,
     Clear,
     
-    ZoomScene(f32, Vector2<f32>),
-    PanScene(Vector2<f32>)
+    ZoomScene(f32, Vector2),
+    PanScene(Vector2)
 }
 
 #[derive(Debug, Clone)]

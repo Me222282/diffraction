@@ -3,7 +3,7 @@ use iced::widget::{shader::Program, shader};
 use iced::widget::Shader;
 use iced::Rectangle;
 
-use crate::screen::renderer::{Screen, SCREEN_SIZE};
+use super::renderer::{Screen, SCREEN_SIZE};
 
 pub fn screen<'a, Message>(colours: &'a [Colour], exposure: f32) -> Shader<Message, ScreenEl<'a>>
 {

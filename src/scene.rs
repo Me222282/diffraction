@@ -1,5 +1,6 @@
 pub mod element;
 pub mod renderer;
+pub mod ui_manager;
 
 use core::f64;
 
@@ -133,8 +134,8 @@ impl Scene
         
         self.waves = waves.collect::<Box<[Wave<f64>]>>();
     }
-    pub fn simulate<S>(&self, wave_map: &[(f64, Vector3<f32>)], samples: &mut [S])
-        where S: From<Vector3<f32>>
+    pub fn simulate<S>(&self, wave_map: &[(f64, Vector3)], samples: &mut [S])
+        where S: From<Vector3>
     {
         let sim_slits = self.get_slits();
         self.env.generate_pattern(&sim_slits, wave_map, samples);
@@ -178,7 +179,7 @@ pub enum SceneUIRef
 
 #[repr(packed, C)]
 #[derive(Debug, Clone, Copy)]
-pub struct LineData(Vector2<f32>, Colour);
+pub struct LineData(Vector2, Colour);
 unsafe impl bytemuck::Pod for LineData { }
 unsafe impl bytemuck::Zeroable for LineData {}
 
@@ -190,17 +191,17 @@ pub struct SceneUIData
     pub ghost: Option<SceneSlit>,
     pub lines: Vec<LineData>,
     pub zoom: f32,
-    pub pan: Vector2<f32>
+    pub pan: Vector2
 }
 
-fn as_32(_64: Vector2<f64>) -> Vector2<f32>
+fn as_32(_64: Vector2<f64>) -> Vector2
 {
     return Vector2::new(_64.x as f32, _64.y as f32);
 }
 
 impl SceneUIData
 {
-    pub fn new(scene: &Scene, sl: f32, zoom: f32, pan: Vector2<f32>) -> Self
+    pub fn new(scene: &Scene, sl: f32, zoom: f32, pan: Vector2) -> Self
     {
         let mut this = Self {
             selection: Default::default(),

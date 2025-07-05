@@ -28,8 +28,8 @@ impl<T> EMEnv<T>
         return a + ((b - a) * x);
     }
     
-    pub fn generate_pattern<S>(&self, slits: &[Slit<'_, T>], wave_map: &[(T, Vector3<f32>)], samples: &mut [S])
-        where S: From<Vector3<f32>>
+    pub fn generate_pattern<S>(&self, slits: &[Slit<'_, T>], wave_map: &[(T, Vector3)], samples: &mut [S])
+        where S: From<Vector3>
     {
         let mut buffer: Vec<(T, Complex<T>)> = wave_map.iter().map(|w| (w.0, Complex::<T>::ZERO)).collect();
         
@@ -46,7 +46,7 @@ impl<T> EMEnv<T>
                 s.calculate_intensity(s_p, &mut buffer);
             }
             
-            let mut sample = Vector3::<f32>::zero();
+            let mut sample = Vector3::zero();
             
             // sum total and clear buffer
             for ((_, c), (_, colour)) in buffer.iter_mut().zip(wave_map.iter())

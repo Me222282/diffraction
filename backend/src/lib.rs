@@ -133,7 +133,7 @@ pub fn wave_length_colour(wl: f32, gamma: f32) -> Vector3<f32>
         _ => factor = 0.0
     }
 
-    return Vector3::<f32>::new(
+    return Vector3::new(
         match r
         {
             0.0 => 0.0,

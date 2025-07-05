@@ -36,18 +36,18 @@ impl Display for Colour
     }
 }
 
-impl From<Vector3<f32>> for Colour
+impl From<Vector3> for Colour
 {
-    fn from(value: Vector3<f32>) -> Self
+    fn from(value: Vector3) -> Self
     {
         return Self::rgb(value.x,
             value.y,
             value.z);
     }
 }
-impl From<Vector4<f32>> for Colour
+impl From<Vector4> for Colour
 {
-    fn from(value: Vector4<f32>) -> Self
+    fn from(value: Vector4) -> Self
     {
         return Self::new(value.x,
             value.y,

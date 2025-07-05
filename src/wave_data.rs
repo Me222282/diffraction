@@ -69,7 +69,7 @@ pub struct WaveData
     pub spectrum: Box<[[f32; 4]]>,
     pub phase: Box<[f32]>,
     pub dft: Vec<Complex32>,
-    pub wave_map: Box<[(f64, Vector3<f32>)]>,
+    pub wave_map: Box<[(f64, Vector3)]>,
     scale: f32,
     use_phase: bool
 }

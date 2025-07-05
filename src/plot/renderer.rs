@@ -27,8 +27,8 @@ impl TextureData for [f32; 4]
 pub struct PlotRender<D: TextureData, const ID: usize>
 {
     data: Vec<D>,
-    foreground: Vector4<f32>,
-    background: Vector4<f32>,
+    foreground: Vector4,
+    background: Vector4,
     scale: f32,
     uv_scale: f32,
     uv_offset: f32
@@ -36,8 +36,8 @@ pub struct PlotRender<D: TextureData, const ID: usize>
 
 impl<D: TextureData, const ID: usize> PlotRender<D, ID>
 {
-    pub fn new(data: Vec<D>, foreground: Vector4<f32>,
-        background: Vector4<f32>, scale: f32, uv_scale: f32, uv_offset: f32) -> Self
+    pub fn new(data: Vec<D>, foreground: Vector4,
+        background: Vector4, scale: f32, uv_scale: f32, uv_offset: f32) -> Self
     {
         return Self {
             data,
@@ -157,11 +157,11 @@ impl<D: TextureData, const ID: usize> Primitive for PlotRender<D, ID>
 #[derive(Copy, Clone, Debug)]
 struct Uniform
 {
-    foreground: Vector4<f32>,
-    background: Vector4<f32>,
-    h_size: Vector2<f32>,
+    foreground: Vector4,
+    background: Vector4,
+    h_size: Vector2,
     // _pad: [f32; 2],
-    uv_trans: Vector2<f32>
+    uv_trans: Vector2
 }
 unsafe impl bytemuck::Pod for Uniform {}
 unsafe impl bytemuck::Zeroable for Uniform {}
