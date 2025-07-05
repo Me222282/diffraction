@@ -1,11 +1,7 @@
-mod plot_element;
-mod plot_renderer;
-mod screen_element;
-mod screen_renderer;
+mod plot;
+mod screen;
 mod wave_data;
 mod scene;
-mod scene_element;
-mod scene_renderer;
 
 use std::f32::consts::{PI, TAU};
 
@@ -13,11 +9,11 @@ use backend::{Colour, WCache};
 use iced::widget::{container, horizontal_rule};
 use iced::{widget::{button, column, container::Style, row, slider, text, toggler, vertical_slider, Space}, Alignment, Background, Color, Element, Length, Padding};
 use num::{complex::Complex32, Zero};
-use plot_element::plotter;
+use plot::element::plotter;
 use scene::{Scene, SceneUIData};
-use screen_element::screen;
-use scene_element::scene;
-use screen_renderer::SCREEN_SIZE;
+use screen::element::screen;
+use scene::element::scene;
+use screen::renderer::SCREEN_SIZE;
 use wave_data::WaveData;
 use zene_structs::{Vector2, Vector4};
 

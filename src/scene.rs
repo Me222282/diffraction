@@ -1,3 +1,6 @@
+pub mod element;
+pub mod renderer;
+
 use core::f64;
 
 use backend::{Colour, EMEnv, Slit, Wave};

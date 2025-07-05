@@ -7,7 +7,7 @@ use iced::{Point, Rectangle};
 use zene_structs::Vector2;
 
 use crate::scene::LineData;
-use crate::scene_renderer::SceneRender;
+use crate::scene::renderer::SceneRender;
 
 pub fn scene<'a, Message, Z, P>(lines: &'a [LineData], zoom: f32, pan: Vector2<f32>,
     on_zoom: Z, on_pan: P) -> Shader<Message, SceneEl<'a, Message, Z, P>>
