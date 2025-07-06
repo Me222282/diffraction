@@ -24,6 +24,47 @@ impl Scene
             }
         }
     }
+    pub fn set_slit_pos(&mut self, i: usize, j: usize, wp: Vector2<f64>)
+    {
+        let w = &mut self.walls[i];
+        let hw = w.slits[j].width * 0.5;
+        
+        let min = match j
+        {
+            0 => hw,
+            _ => w.slits[j - 1].get_right() + hw
+        };
+        let end = w.slits.len() - 1;
+        let max = match j
+        {
+            x if x == end => w.a.distance(w.b) - hw,
+            _ => w.slits[j + 1].get_left() - hw
+        };
+        
+        let dist = (wp - w.a).dot(w.dir);
+        w.slits[j].position = dist.clamp(min, max);
+    }
+    pub fn set_wall_pos(&mut self, i: usize, a: Vector2<f64>)
+    {
+        let w = &self.walls[i];
+        let off = a - w.a;
+        let b = w.b + off;
+        
+        let max = self.walls.len() - 1;
+        match (i, max)
+        {
+            (0, 0) => (),
+            (0, _) => self.walls[i + 1].set_a(b),
+            (x, _) if x == max => self.walls[i - 1].set_b(a),
+            (_, _) =>
+            {
+                self.walls[i - 1].set_b(a);
+                self.walls[i + 1].set_a(b);
+            }
+        }
+        
+        self.walls[i].shift(off);
+    }
     
     pub fn mouse_point(&self, wp: Vector2<f64>, zoom: f32) -> SceneUIRef
     {

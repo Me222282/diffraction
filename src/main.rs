@@ -6,6 +6,7 @@ mod scene;
 use std::f32::consts::{PI, TAU};
 
 use backend::{Colour, WCache};
+use iced::keyboard::Modifiers;
 use iced::widget::{container, horizontal_rule};
 use iced::{widget::{button, column, container::Style, row, slider, text, toggler, vertical_slider, Space}, Alignment, Background, Color, Element, Length, Padding};
 use num::{complex::Complex32, Zero};
@@ -28,8 +29,7 @@ pub const SCENE_MESSAGES: MessageFuncs<Message> = MessageFuncs
     on_pan: Message::PanScene,
     on_hover: Message::SceneHover,
     on_select: Message::SceneSelect,
-    // on_point: todo!(),
-    // on_screen: todo!(),
+    on_drag: Message::SceneDrag
 };
 
 #[derive(Debug, Clone)]
@@ -56,7 +56,8 @@ enum Message
     ZoomScene(f32, Vector2),
     PanScene(Vector2),
     SceneHover(SceneUIRef),
-    SceneSelect(SceneUIRef)
+    SceneSelect(SceneUIRef),
+    SceneDrag(SceneUIRef, Vector2<f64>, Vector2<f64>, Modifiers)
 }
 
 #[derive(Debug, Clone)]
@@ -69,7 +70,8 @@ struct State
     colours: Box<[Colour]>,
     exposure: f32,
     scene: Scene,
-    scene_ui: SceneUIData
+    scene_ui: SceneUIData,
+    wall_start: Vector2<f64>
 }
 impl Default for State
 {
@@ -88,7 +90,8 @@ impl Default for State
             colours: vec![Colour::ZERO; SCREEN_SIZE as usize].into_boxed_slice(),
             exposure: 1.0,
             scene,
-            scene_ui
+            scene_ui,
+            wall_start: Default::default()
         }
     }
 }
@@ -256,8 +259,44 @@ fn update(state: &mut State, message: Message)
         },
         Message::SceneSelect(scene_uiref) =>
         {
+            if let SceneUIRef::Wall(i) = scene_uiref
+            {
+                state.wall_start = state.scene.get_wall(i).get_a_b().0;
+            }
+            
             if state.scene_ui.selection == scene_uiref { return; }
             state.scene_ui.selection = scene_uiref;
+            state.scene_ui.generate_lines(&state.scene, SL);
+        },
+        Message::SceneDrag(scene_uiref, pp, wp, mods) =>
+        {
+            match scene_uiref
+            {
+                SceneUIRef::Slit(i, j) =>
+                {
+                    state.scene.set_slit_pos(i, j, wp);
+                },
+                SceneUIRef::Wall(i) =>// if mods.alt() =>
+                {
+                    let a = state.wall_start + wp - pp;
+                    state.scene.set_wall_pos(i, a);
+                },
+                SceneUIRef::Point(i, ab) =>
+                {
+                    state.scene.set_wall_point(i, ab, wp);
+                },
+                SceneUIRef::Screen(lr) =>
+                {
+                    match lr
+                    {
+                        false => state.scene.env.screen.0 = wp,
+                        true => state.scene.env.screen.1 = wp,
+                    }
+                },
+                _ => return,
+            }
+            
+            state.scene.simulate(&state.plot.wave_map, &mut state.colours);
             state.scene_ui.generate_lines(&state.scene, SL);
         }
     }

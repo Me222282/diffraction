@@ -1,4 +1,5 @@
 use iced::event::Status;
+use iced::keyboard::Modifiers;
 use iced::mouse::{Button, ScrollDelta};
 use iced::widget::shader::Event;
 use iced::widget::{shader::Program, shader};
@@ -15,7 +16,7 @@ pub struct MessageFuncs<Message>
     pub on_pan: fn(Vector2) -> Message,
     pub on_hover: fn(SceneUIRef) -> Message,
     pub on_select: fn(SceneUIRef) -> Message,
-    // pub on_drag: fn(SceneUIRef, Vector2) -> Message
+    pub on_drag: fn(SceneUIRef, Vector2<f64>, Vector2<f64>, Modifiers) -> Message
 }
 
 pub fn scene<'a, Message: 'static>(lines: &'a [LineData], scene: &'a Scene, zoom: f32, pan: Vector2,
@@ -42,7 +43,28 @@ pub struct State
     mp: Point,
     hover: SceneUIRef,
     select: SceneUIRef,
-    press_select: bool
+    press_select: bool,
+    mods: Modifiers,
+    press_point: Vector2
+}
+
+impl<'a, Message: 'static> SceneEl<'a, Message>
+{
+    fn mouse_hover(&self, state: &mut State, bounds: Rectangle, pan_div: f32,
+        cursor: iced::advanced::mouse::Cursor, shell: &mut iced::advanced::Shell<'_, Message>, force: bool)
+    {
+        let mp = cursor.position_from(bounds.center()).unwrap_or(Default::default());
+        let mp = Vector2::new(mp.x, -mp.y);
+        let wp = ((mp / pan_div) - self.pan) / self.zoom;
+        
+        let hover = self.scene.mouse_point(Vector2::new(wp.x as f64, wp.y as f64), self.zoom);
+        
+        if force || hover != state.hover
+        {
+            state.hover = hover;
+            shell.publish((self.funcs.on_hover)(hover));
+        }
+    }
 }
 
 impl<'a, Message: 'static> Program<Message> for SceneEl<'a, Message>
@@ -78,6 +100,7 @@ impl<'a, Message: 'static> Program<Message> for SceneEl<'a, Message>
         
         match event
         {
+            Event::Keyboard(iced::keyboard::Event::ModifiersChanged(mods)) => state.mods = mods,
             Event::Mouse(iced::mouse::Event::ButtonPressed(Button::Middle)) =>
             {
                 if let Some(cursor_position) = cursor.position_over(bounds)
@@ -99,19 +122,7 @@ impl<'a, Message: 'static> Program<Message> for SceneEl<'a, Message>
                 if state.panning
                 {
                     state.panning = false;
-                    
-                    let mp = cursor.position_from(bounds.center()).unwrap_or(Default::default());
-                    let mp = Vector2::new(mp.x, -mp.y);
-                    let wp = ((mp / pan_div) - self.pan) / self.zoom;
-                    
-                    let hover = self.scene.mouse_point(Vector2::new(wp.x as f64, wp.y as f64), self.zoom);
-                    
-                    if hover != state.hover
-                    {
-                        state.hover = hover;
-                        shell.publish((self.funcs.on_hover)(hover));
-                    }
-                    
+                    self.mouse_hover(state, bounds, pan_div, cursor, shell, false);
                     return (Status::Captured, None);
                 }
             },
@@ -121,32 +132,28 @@ impl<'a, Message: 'static> Program<Message> for SceneEl<'a, Message>
                 {
                     match state.hover
                     {
-                        SceneUIRef::Slit(_, _) =>
+                        SceneUIRef::None => state.select = SceneUIRef::None,
+                        _ =>
                         {
                             state.select = state.hover;
                             state.press_select = true;
                             shell.publish((self.funcs.on_hover)(SceneUIRef::None));
                         }
-                        SceneUIRef::Wall(_) =>
-                        {
-                            state.select = state.hover;
-                            state.press_select = true;
-                            shell.publish((self.funcs.on_hover)(SceneUIRef::None));
-                        },
-                        _ => state.select = SceneUIRef::None
                     }
                     
-                    shell.publish((self.funcs.on_select)(state.select));
-                    
-                    return (Status::Captured, None);
+                    let mp = cursor.position_from(bounds.center()).unwrap_or(Default::default());
+                    let mp = Vector2::new(mp.x, -mp.y);
+                    let wp = ((mp / pan_div) - self.pan) / self.zoom;
+                    state.press_point = wp;
+                    return (Status::Captured, Some((self.funcs.on_select)(state.select)));
                 }
             },
             Event::Mouse(iced::mouse::Event::ButtonReleased(Button::Left)) =>
             {
                 if state.press_select
                 {
-                    shell.publish((self.funcs.on_hover)(state.hover));
-                    
+                    state.press_select = false;
+                    self.mouse_hover(state, bounds, pan_div, cursor, shell, true);
                     return (Status::Captured, None);
                 }
             },
@@ -163,17 +170,20 @@ impl<'a, Message: 'static> Program<Message> for SceneEl<'a, Message>
                     return (Status::Captured, Some((self.funcs.on_pan)(np)));
                 }
                 
-                let mp = cursor.position_from(bounds.center()).unwrap_or(Default::default());
-                let mp = Vector2::new(mp.x, -mp.y);
-                let wp = ((mp / pan_div) - self.pan) / self.zoom;
-                
-                let hover = self.scene.mouse_point(Vector2::new(wp.x as f64, wp.y as f64), self.zoom);
-                
-                if hover != state.hover
+                if state.press_select
                 {
-                    state.hover = hover;
-                    shell.publish((self.funcs.on_hover)(hover));
+                    if state.select == SceneUIRef::None { return (Status::Captured, None); }
+                    
+                    let mp = cursor.position_from(bounds.center()).unwrap_or(Default::default());
+                    let mp = Vector2::new(mp.x, -mp.y);
+                    let wp = ((mp / pan_div) - self.pan) / self.zoom;
+                    
+                    let wp = Vector2::<f64>::new(wp.x as f64, wp.y as f64);
+                    let pp = Vector2::<f64>::new(state.press_point.x as f64, state.press_point.y as f64);
+                    return (Status::Captured, Some((self.funcs.on_drag)(state.select, pp, wp, state.mods)));
                 }
+                
+                self.mouse_hover(state, bounds, pan_div, cursor, shell, false);
             },
             Event::Mouse(iced::mouse::Event::WheelScrolled { delta }) =>
             {

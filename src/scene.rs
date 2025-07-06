@@ -15,6 +15,27 @@ pub struct SceneSlit
     pub width: f64,
     pub position: f64
 }
+
+impl SceneSlit
+{
+    pub fn get_position(&self, wall: &Wall) -> Vector2<f64>
+    {
+        return wall.a + (wall.dir * self.position);
+    }
+    pub fn get_slit<'a>(&self, wall: &Wall, waves: &'a [Wave<f64>]) -> Slit<'a, f64>
+    {
+        return Slit::new(self.width, self.get_position(&wall), wall.dir.rotated_90(), waves);
+    }
+    pub fn get_left(&self) -> f64
+    {
+        return self.position - (self.width * 0.5);
+    }
+    pub fn get_right(&self) -> f64
+    {
+        return self.position + (self.width * 0.5);
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Wall
 {
@@ -36,19 +57,42 @@ impl Wall
         };
     }
     
+    fn scale_slits(&mut self, old_len2: f64)
+    {
+        let scale = (self.a.squared_distance(self.b) / old_len2).sqrt();
+        
+        for s in &mut self.slits
+        {
+            s.position *= scale;
+        }
+    }
+    
     pub fn set_a(&mut self, a: Vector2<f64>)
     {
+        let len2 = self.a.squared_distance(self.b);
+        
         self.a = a;
         self.dir = (self.b - a).normalised();
+        
+        self.scale_slits(len2);
     }
     pub fn set_b(&mut self, b: Vector2<f64>)
     {
+        let len2 = self.a.squared_distance(self.b);
+        
         self.b = b;
         self.dir = (b - self.a).normalised();
+        
+        self.scale_slits(len2);
     }
     pub fn get_a_b(&self) -> (Vector2<f64>, Vector2<f64>)
     {
         return (self.a, self.b);
+    }
+    pub fn shift(&mut self, off: Vector2<f64>)
+    {
+        self.a += off;
+        self.b += off;
     }
     
     pub fn split(&mut self, pos: f64) -> Wall
@@ -94,7 +138,7 @@ impl Wall
 #[derive(Debug, Clone)]
 pub struct Scene
 {
-    env: EMEnv<f64>,
+    pub env: EMEnv<f64>,
     waves: Box<[Wave<f64>]>,
     walls: Vec<Wall>
 }
@@ -152,17 +196,9 @@ impl Scene
         }
         return sim_slits;
     }
-}
-
-impl SceneSlit
-{
-    pub fn get_position(&self, wall: &Wall) -> Vector2<f64>
+    pub fn get_wall(&self, i: usize) -> &Wall
     {
-        return wall.a + (wall.dir * self.position);
-    }
-    pub fn get_slit<'a>(&self, wall: &Wall, waves: &'a [Wave<f64>]) -> Slit<'a, f64>
-    {
-        return Slit::new(self.width, self.get_position(&wall), wall.dir.rotated_90(), waves);
+        return &self.walls[i];
     }
 }
 
