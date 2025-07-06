@@ -10,7 +10,8 @@ use iced::widget::{container, horizontal_rule};
 use iced::{widget::{button, column, container::Style, row, slider, text, toggler, vertical_slider, Space}, Alignment, Background, Color, Element, Length, Padding};
 use num::{complex::Complex32, Zero};
 use plot::element::plotter;
-use scene::{Scene, SceneUIData};
+use scene::element::MessageFuncs;
+use scene::{Scene, SceneUIData, SceneUIRef};
 use screen::element::screen;
 use scene::element::scene;
 use screen::renderer::SCREEN_SIZE;
@@ -19,7 +20,17 @@ use zene_structs::{Vector2, Vector4};
 
 pub const PLOTTER_SIZE: u32 = 200;
 pub const SPECTRUM_SIZE: u32 = 256;
-pub const SL: f32 = 0.05;
+pub const SL: f32 = 0.03;
+
+pub const SCENE_MESSAGES: MessageFuncs<Message> = MessageFuncs
+{
+    on_zoom: Message::ZoomScene,
+    on_pan: Message::PanScene,
+    on_hover: Message::SceneHover,
+    on_select: Message::SceneSelect,
+    // on_point: todo!(),
+    // on_screen: todo!(),
+};
 
 #[derive(Debug, Clone)]
 enum Message
@@ -43,7 +54,9 @@ enum Message
     Clear,
     
     ZoomScene(f32, Vector2),
-    PanScene(Vector2)
+    PanScene(Vector2),
+    SceneHover(SceneUIRef),
+    SceneSelect(SceneUIRef)
 }
 
 #[derive(Debug, Clone)]
@@ -236,6 +249,17 @@ fn update(state: &mut State, message: Message)
         {
             state.scene_ui.pan = pan;
         }
+        Message::SceneHover(scene_uiref) =>
+        {
+            state.scene_ui.hover = scene_uiref;
+            state.scene_ui.generate_lines(&state.scene, SL);
+        },
+        Message::SceneSelect(scene_uiref) =>
+        {
+            if state.scene_ui.selection == scene_uiref { return; }
+            state.scene_ui.selection = scene_uiref;
+            state.scene_ui.generate_lines(&state.scene, SL);
+        }
     }
 }
 
@@ -264,7 +288,7 @@ fn view(state: &State) -> Element<Message>
             ].spacing(10).width(Length::Fixed(SCREEN_SIZE as f32))
                 .align_y(Alignment::Center)
                 .padding(Padding::new(5.0)),
-            container(scene(&state.scene_ui.lines, state.scene_ui.zoom, state.scene_ui.pan, Message::ZoomScene, Message::PanScene)
+            container(scene(&state.scene_ui.lines, &state.scene, state.scene_ui.zoom, state.scene_ui.pan, &SCENE_MESSAGES)
                 .width(Length::Fill).height(Length::Fill)).center(Length::Fill)
                 .style(|_| Style::default().background(Background::Color(Color::from_rgb(0.15, 0.15, 0.15))))  
         ].spacing(10)

@@ -3,7 +3,7 @@ use core::f64;
 use zene_structs::{Line2, Vector, Vector2};
 
 use crate::SL;
-use super::{Scene, SceneUIRef, Wall};
+use super::{Scene, SceneSlit, SceneUIRef, Wall};
 
 impl Scene
 {
@@ -44,14 +44,16 @@ impl Scene
         {
             for (j, s) in w.slits.iter().enumerate()
             {
-                let p = s.get_position(w);
-                let d = p.squared_distance(wp);
+                let d = dist_to_slit(wp, s, w);
                 if d < close
                 {
                     close = d;
                     ui_ref = SceneUIRef::Slit(i, j);
                 }
             }
+            
+            // prioritise slits
+            if let SceneUIRef::Slit(_, _) = ui_ref { continue; }
             
             let d = wp.squared_distance(w.a);
             if d < close
@@ -125,6 +127,7 @@ impl Scene
                 },
                 Segment::Between =>
                 {
+                    // direction is normalised
                     let t = (wp - w.a).dot(w.dir);
                     let p = w.a + (w.dir * t);
                     let d = wp.squared_distance(p);
@@ -159,6 +162,24 @@ fn in_segment(p: Vector2<f64>, w: &Wall) -> bool
     let dot_b = w.dir.dot(p - w.b);
     
     return dot_a.is_sign_positive() ^ dot_b.is_sign_positive();
+}
+
+fn dist_to_slit(wp: Vector2<f64>, s: &SceneSlit, w: &Wall) -> f64
+{
+    let p = s.get_position(w);
+    let off = w.dir * (s.width * 0.5);
+    let a = p - off;
+    let b = p + off;
+    
+    let dot_a = w.dir.dot(wp - a);
+    let dot_b = w.dir.dot(wp - b);
+    
+    if !(dot_a.is_sign_positive() ^ dot_b.is_sign_positive())
+    {
+        return p.squared_distance(wp);
+    }
+    
+    return Line2::new(w.dir, w.a).squared_distance_from_point(wp);
 }
 
 enum Segment

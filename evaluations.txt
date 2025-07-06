@@ -1,0 +1,13 @@
+\sin\left(\frac{2\pi}{l} \, \sqrt{p^{2} + q^{2}}\right)
+
+-\frac{2\pi p\cos\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right)}{l \sqrt{p^{2} + q^{2}}}
+
+\frac{2\pi q^{2} \cos\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right)}{l \left(p^{2} + q^{2}\right)^{\frac{3}{2}}} - \frac{4\pi^{2} p^{2} \sin\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right)}{l^{2} \left(p^{2} + q^{2}\right)}
+
+\frac{2\pi p \left(6\pi lq^{2} \sqrt{p^{2} + q^{2}} \sin\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right) + \left(\left(4\pi^{2} p^{2} + 3l^{2}\right) q^{2} + 4\pi^{2} p^{4}\right) \cos\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right)\right)}{l^{3} \left(p^{2} + q^{2}\right)^{\frac{5}{2}}}
+
+-\frac{2\pi \left(\left(6\pi l^{2} q^{2} \left(p^{2} + q^{2}\right)^{\frac{3}{2}} + \left(\left(-8\pi^{3} p^{4} - 30\pi l^{2} p^{2}\right) q^{2} - 8\pi^{3} p^{6}\right) \sqrt{p^{2} + q^{2}}\right) \sin\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right) + \left(\left(24\pi^{2} lp^{2} + 3l^{3}\right) q^{4} + \left(24\pi^{2} lp^{4} - 12l^{3} p^{2}\right) q^{2}\right) \cos\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right)\right)}{l^{4} \left(p^{2} + q^{2}\right)^{\frac{7}{2}}}
+
+\frac{-2\pi p \left(\sqrt{p^{2} + q^{2}} \left(\left(80\pi^{3} lp^{2} + 90\pi l^{3}\right) q^{4} + \left(80\pi^{3} lp^{4} - 120\pi l^{3} p^{2}\right) q^{2}\right) \sin\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right) + \left(-60\pi^{2} l^{2} q^{6} + \left(16\pi^{4} p^{4} + 60\pi^{2} l^{2} p^{2} + 45l^{4}\right) q^{4} + \left(32\pi^{4} p^{6} + 120\pi^{2} l^{2} p^{4} - 60l^{4} p^{2}\right) q^{2} + 16\pi^{4} p^{8}\right) \cos\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right)\right)}{l^{5} \left(p^{2} + q^{2}\right)^{\frac{9}{2}}}
+
+\frac{2\pi \left(\left(\sqrt{p^{2} + q^{2}} \left(120\pi^{3} l^{2} p^{2} q^{6} + \left(-32\pi^{5} p^{6} - 760\pi^{3} l^{2} p^{4} - 810\pi l^{4} p^{2}\right) q^{4} + \left(-64\pi^{5} p^{8} - 880\pi^{3} l^{2} p^{6} + 1080\pi l^{4} p^{4}\right) q^{2} - 32\pi^{5} p^{10}\right) + \left(p^{2} + q^{2}\right)^{\frac{3}{2}} \left(\left(240\pi^{3} l^{2} p^{2} + 90\pi l^{4}\right) q^{4} + \left(400\pi^{3} l^{2} p^{4} - 360\pi l^{4} p^{2}\right) q^{2}\right)\right) \sin\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right) + \left(-60\pi^{2} l^{3} q^{8} + \left(240\pi^{4} lp^{4} + 840\pi^{2} l^{3} p^{2} + 45l^{5}\right) q^{6} + \left(480\pi^{4} lp^{6} + 180\pi^{2} l^{3} p^{4} - 540l^{5} p^{2}\right) q^{4} + \left(240\pi^{4} lp^{8} - 720\pi^{2} l^{3} p^{6} + 360l^{5} p^{4}\right) q^{2}\right) \cos\left(\frac{2\pi \sqrt{p^{2} + q^{2}}}{l}\right)\right)}{l^{6} \left(p^{2} + q^{2}\right)^{\frac{11}{2}}}

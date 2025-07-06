@@ -166,7 +166,7 @@ impl SceneSlit
     }
 }
 
-#[derive(Debug, Clone, Default, Copy)]
+#[derive(Debug, Clone, Default, Copy, PartialEq, Eq)]
 pub enum SceneUIRef
 {
     #[default]
@@ -283,30 +283,11 @@ impl SceneUIData
 
 const NORM: Colour = Colour::rgb(1.0, 0.63529411764, 0.0);
 const SELECT: Colour = Colour::rgb(1.0, 0.80784313725, 0.47058823529);
-const HOVER: Colour = Colour::rgb(1.0, 0.83529411764, 0.0);
+const HOVER: Colour = Colour::rgb(1.0, 0.1, 0.0);
 const GHOST: Colour = Colour::new(1.0, 0.83529411764, 0.0, 0.5);
 const SCREEN: Colour = Colour::rgb(0.5, 0.5, 0.5);
 fn get_colour(i: usize, j: Option<usize>, select: SceneUIRef, hover: SceneUIRef) -> Colour
 {
-    match (select, j)
-    {
-        (SceneUIRef::Slit(a, b), Some(j)) =>
-        {
-            if a == i && b == j
-            {
-                return SELECT;
-            }
-        },
-        (SceneUIRef::Wall(a), None) =>
-        {
-            if a == i
-            {
-                return SELECT;
-            }
-        },
-        _ => {}
-    }
-    
     match (hover, j)
     {
         (SceneUIRef::Slit(a, b), Some(j)) =>
@@ -321,6 +302,25 @@ fn get_colour(i: usize, j: Option<usize>, select: SceneUIRef, hover: SceneUIRef)
             if a == i
             {
                 return HOVER;
+            }
+        },
+        _ => {}
+    }
+    
+    match (select, j)
+    {
+        (SceneUIRef::Slit(a, b), Some(j)) =>
+        {
+            if a == i && b == j
+            {
+                return SELECT;
+            }
+        },
+        (SceneUIRef::Wall(a), None) =>
+        {
+            if a == i
+            {
+                return SELECT;
             }
         },
         _ => {}
