@@ -16,7 +16,10 @@ pub struct MessageFuncs<Message>
     pub on_pan: fn(Vector2) -> Message,
     pub on_hover: fn(SceneUIRef) -> Message,
     pub on_select: fn(SceneUIRef) -> Message,
-    pub on_drag: fn(SceneUIRef, Vector2<f64>, Vector2<f64>, Modifiers) -> Message
+    pub on_drag: fn(SceneUIRef, Vector2<f64>, Vector2<f64>, Modifiers) -> Message,
+    pub on_cancel: fn() -> Message,
+    pub on_ghost: fn(usize, f64) -> Message,
+    pub on_ghost_end: fn(bool) -> Message,
 }
 
 pub fn scene<'a, Message: 'static>(lines: &'a [LineData], scene: &'a Scene, zoom: f32, pan: Vector2,
@@ -45,7 +48,8 @@ pub struct State
     select: SceneUIRef,
     press_select: bool,
     mods: Modifiers,
-    press_point: Vector2
+    press_point: Vector2,
+    insert_slit: bool
 }
 
 impl<'a, Message: 'static> SceneEl<'a, Message>
@@ -101,6 +105,34 @@ impl<'a, Message: 'static> Program<Message> for SceneEl<'a, Message>
         match event
         {
             Event::Keyboard(iced::keyboard::Event::ModifiersChanged(mods)) => state.mods = mods,
+            Event::Keyboard(iced::keyboard::Event::KeyPressed{key, ..}) =>
+            {
+                match key
+                {
+                    iced::keyboard::Key::Character(c)
+                        if c == "i" && state.mods.control() && !state.press_select =>
+                    {
+                        state.insert_slit = true;
+                        return (Status::Captured, None);
+                    },
+                    iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape) =>
+                    {
+                        if state.insert_slit
+                        {
+                            state.insert_slit = false;
+                            return (Status::Captured, Some((self.funcs.on_ghost_end)(false)));
+                        }
+                        if state.press_select
+                        {
+                            shell.publish((self.funcs.on_cancel)());
+                            state.press_select = false;
+                            self.mouse_hover(state, bounds, pan_div, cursor, shell, true);
+                            return (Status::Captured, Some((self.funcs.on_select)(SceneUIRef::None)));
+                        }
+                    },
+                    _ => ()
+                }
+            },
             Event::Mouse(iced::mouse::Event::ButtonPressed(Button::Middle)) =>
             {
                 if let Some(cursor_position) = cursor.position_over(bounds)
@@ -130,6 +162,19 @@ impl<'a, Message: 'static> Program<Message> for SceneEl<'a, Message>
             {
                 if cursor.is_over(bounds)
                 {
+                    if state.insert_slit
+                    {
+                        let valid = match state.hover
+                        {
+                            SceneUIRef::Slit(_, _) | SceneUIRef::Wall(_) |
+                                SceneUIRef::Point(_, _) => true,
+                            _ => false
+                        };
+                        
+                        state.insert_slit = false;
+                        return (Status::Captured, Some((self.funcs.on_ghost_end)(valid)));
+                    }
+                    
                     match state.hover
                     {
                         SceneUIRef::None => state.select = SceneUIRef::None,
@@ -170,20 +215,32 @@ impl<'a, Message: 'static> Program<Message> for SceneEl<'a, Message>
                     return (Status::Captured, Some((self.funcs.on_pan)(np)));
                 }
                 
+                let mp = cursor.position_from(bounds.center()).unwrap_or(Default::default());
+                let mp = Vector2::new(mp.x, -mp.y);
+                let wp = ((mp / pan_div) - self.pan) / self.zoom;
+                let wp = Vector2::<f64>::new(wp.x as f64, wp.y as f64);
+                
                 if state.press_select
                 {
                     if state.select == SceneUIRef::None { return (Status::Captured, None); }
                     
-                    let mp = cursor.position_from(bounds.center()).unwrap_or(Default::default());
-                    let mp = Vector2::new(mp.x, -mp.y);
-                    let wp = ((mp / pan_div) - self.pan) / self.zoom;
-                    
-                    let wp = Vector2::<f64>::new(wp.x as f64, wp.y as f64);
                     let pp = Vector2::<f64>::new(state.press_point.x as f64, state.press_point.y as f64);
                     return (Status::Captured, Some((self.funcs.on_drag)(state.select, pp, wp, state.mods)));
                 }
                 
-                self.mouse_hover(state, bounds, pan_div, cursor, shell, false);
+                // press select is false
+                if state.insert_slit
+                {
+                    let ghost = self.scene.wall_pos(wp);
+                    shell.publish((self.funcs.on_ghost)(ghost.0, ghost.1));
+                }
+                
+                let hover = self.scene.mouse_point(wp, self.zoom);
+                if hover != state.hover
+                {
+                    state.hover = hover;
+                    shell.publish((self.funcs.on_hover)(hover));
+                }
             },
             Event::Mouse(iced::mouse::Event::WheelScrolled { delta }) =>
             {

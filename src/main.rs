@@ -5,14 +5,14 @@ mod scene;
 
 use std::f32::consts::{PI, TAU};
 
-use backend::{snap_point, Colour, WCache};
+use backend::{Colour, UIWall, WCache};
 use iced::keyboard::Modifiers;
 use iced::widget::{container, horizontal_rule};
 use iced::{widget::{button, column, container::Style, row, slider, text, toggler, vertical_slider, Space}, Alignment, Background, Color, Element, Length, Padding};
 use num::{complex::Complex32, Zero};
 use plot::element::plotter;
 use scene::element::MessageFuncs;
-use scene::{Scene, SceneUIData, SceneUIRef};
+use scene::{Scene, SceneSlit, SceneUIData, SceneUIRef, DEFAULT_WIDTH};
 use screen::element::screen;
 use scene::element::scene;
 use screen::renderer::SCREEN_SIZE;
@@ -23,13 +23,16 @@ pub const PLOTTER_SIZE: u32 = 200;
 pub const SPECTRUM_SIZE: u32 = 256;
 pub const SL: f32 = 0.03;
 
-pub const SCENE_MESSAGES: MessageFuncs<Message> = MessageFuncs
+const SCENE_MESSAGES: MessageFuncs<Message> = MessageFuncs
 {
     on_zoom: Message::ZoomScene,
     on_pan: Message::PanScene,
     on_hover: Message::SceneHover,
     on_select: Message::SceneSelect,
-    on_drag: Message::SceneDrag
+    on_cancel: Message::SceneCancel,
+    on_drag: Message::SceneDrag,
+    on_ghost: Message::GhostScene,
+    on_ghost_end: Message::EndGhostScene,
 };
 
 #[derive(Debug, Clone)]
@@ -57,7 +60,10 @@ enum Message
     PanScene(Vector2),
     SceneHover(SceneUIRef),
     SceneSelect(SceneUIRef),
-    SceneDrag(SceneUIRef, Vector2<f64>, Vector2<f64>, Modifiers)
+    SceneDrag(SceneUIRef, Vector2<f64>, Vector2<f64>, Modifiers),
+    SceneCancel(),
+    GhostScene(usize, f64),
+    EndGhostScene(bool)
 }
 
 #[derive(Debug, Clone)]
@@ -71,7 +77,8 @@ struct State
     exposure: f32,
     scene: Scene,
     scene_ui: SceneUIData,
-    wall_start: Vector2<f64>
+    scene_ref_pos: Vector2<f64>,
+    select_wall_old: (Vector2<f64>, Vector2<f64>),
 }
 impl Default for State
 {
@@ -91,8 +98,57 @@ impl Default for State
             exposure: 1.0,
             scene,
             scene_ui,
-            wall_start: Default::default()
+            scene_ref_pos: Default::default(),
+            select_wall_old: Default::default()
         }
+    }
+}
+
+impl State
+{
+    fn drag_scene(&mut self, scene_uiref: SceneUIRef, pp: Vector2<f64>, wp: Vector2<f64>, mods: Modifiers)
+    {
+        match scene_uiref
+        {
+            SceneUIRef::Slit(i, j) =>
+            {
+                self.scene.set_slit_pos(i, j, wp);
+            },
+            SceneUIRef::Wall(i) =>// if mods.alt() =>
+            {
+                let a = self.scene_ref_pos + wp - pp;
+                self.scene.get_ui_wall(i).shift_whole_wall(a);
+            },
+            SceneUIRef::Point(i, ab) =>
+            {
+                match (mods.shift(), mods.control())
+                {
+                    (true, true) => self.scene.get_ui_wall(i).snap_wall_points(ab, wp, self.select_wall_old, mods.alt()),
+                    (false, true) => self.scene.get_ui_wall(i).set_wall_points(ab, wp, self.select_wall_old, mods.alt()),
+                    (true, false) => self.scene.get_ui_wall(i).snap_wall_point(ab, wp, self.select_wall_old, mods.alt()),
+                    (false, false) => self.scene.get_ui_wall(i).set_wall_point(ab, wp, self.select_wall_old, mods.alt())
+                }
+            },
+            SceneUIRef::ScreenPoint(lr) =>
+            {
+                match (mods.shift(), mods.control())
+                {
+                    (true, true) => self.scene.env.screen.snap_wall_points(lr, wp, self.select_wall_old, mods.alt()),
+                    (false, true) => self.scene.env.screen.set_wall_points(lr, wp, self.select_wall_old, mods.alt()),
+                    (true, false) => self.scene.env.screen.snap_wall_point(lr, wp, self.select_wall_old, mods.alt()),
+                    (false, false) => self.scene.env.screen.set_wall_point(lr, wp, self.select_wall_old, mods.alt())
+                }
+            },
+            SceneUIRef::Screen =>// if mods.alt() =>
+            {
+                let a = self.scene_ref_pos + wp - pp;
+                self.scene.env.screen.shift_whole_wall(a);
+            },
+            _ => return,
+        }
+        
+        self.scene.simulate(&self.plot.wave_map, &mut self.colours);
+        self.scene_ui.generate_lines(&self.scene, SL);
     }
 }
 
@@ -259,9 +315,14 @@ fn update(state: &mut State, message: Message)
         },
         Message::SceneSelect(scene_uiref) =>
         {
-            if let SceneUIRef::Wall(i) = scene_uiref
+            state.scene_ref_pos = state.scene.get_ref_pos(scene_uiref);
+            if let SceneUIRef::Point(i, _) = scene_uiref
             {
-                state.wall_start = state.scene.get_wall(i).get_a_b().0;
+                state.select_wall_old = state.scene.get_wall(i).get_a_b();
+            }
+            else if let SceneUIRef::ScreenPoint(_) = scene_uiref
+            {
+                state.select_wall_old = state.scene.env.screen;
             }
             
             if state.scene_ui.selection == scene_uiref { return; }
@@ -270,49 +331,34 @@ fn update(state: &mut State, message: Message)
         },
         Message::SceneDrag(scene_uiref, pp, wp, mods) =>
         {
-            match scene_uiref
+            state.drag_scene(scene_uiref, pp, wp, mods);
+        }
+        Message::GhostScene(i, p) =>
+        {
+            let p = p.clamp(DEFAULT_WIDTH * 0.5, state.scene.get_wall(i).len() - (DEFAULT_WIDTH * 0.5));
+            let ghost = (SceneSlit { width: DEFAULT_WIDTH, position: p }, i);
+            state.scene_ui.ghost = Some(ghost);
+            
+            state.scene.simulate_ghost(&state.plot.wave_map, &mut state.colours, ghost);
+            state.scene_ui.generate_lines(&state.scene, SL);
+        },
+        Message::EndGhostScene(valid) =>
+        {
+            if valid
             {
-                SceneUIRef::Slit(i, j) =>
-                {
-                    state.scene.set_slit_pos(i, j, wp);
-                },
-                SceneUIRef::Wall(i) =>// if mods.alt() =>
-                {
-                    let a = state.wall_start + wp - pp;
-                    state.scene.set_wall_pos(i, a);
-                },
-                SceneUIRef::Point(i, ab) =>
-                {
-                    if mods.shift()
-                    {
-                        state.scene.snap_wall_point(i, ab, wp);
-                    }
-                    else
-                    {
-                        state.scene.set_wall_point(i, ab, wp);
-                    }
-                },
-                SceneUIRef::Screen(lr) =>
-                {
-                    match (lr, mods.shift())
-                    {
-                        (false, false) => state.scene.env.screen.0 = wp,
-                        (true, false) => state.scene.env.screen.1 = wp,
-                        (false, true) =>
-                        {
-                            state.scene.env.screen.0 = snap_point(state.scene.env.screen.1, wp);
-                        },
-                        (true, true) =>
-                        {
-                            state.scene.env.screen.1 = snap_point(state.scene.env.screen.0, wp);
-                        }
-                    }
-                },
-                _ => return,
+                // will exist
+                let ghost = state.scene_ui.ghost.unwrap();
+                state.scene.insert_slit(ghost);
             }
             
+            state.scene_ui.ghost = None;
             state.scene.simulate(&state.plot.wave_map, &mut state.colours);
             state.scene_ui.generate_lines(&state.scene, SL);
+        },
+        Message::SceneCancel() =>
+        {
+            let old = state.scene_ref_pos;
+            state.drag_scene(state.scene_ui.selection, old, old, Modifiers::empty());
         }
     }
 }

@@ -1,38 +1,90 @@
 use core::f64;
 
-use backend::snap_point;
+use backend::UIWall;
+use num::Zero;
 use zene_structs::{Line2, Vector, Vector2};
 
 use crate::SL;
 use super::{Scene, SceneSlit, SceneUIRef, Wall};
 
+pub struct SceneWallRef<'a>
+{
+    scene: &'a mut Scene,
+    pre: Option<usize>,
+    this: usize,
+    post: Option<usize>
+}
+impl<'a> UIWall for SceneWallRef<'a>
+{
+    fn set_a(&mut self, a: Vector2<f64>)
+    {
+        if let Some(o) = self.pre
+        {
+            self.scene.walls[o].set_b(a);
+        }
+        
+        self.scene.walls[self.this].set_a(a);
+    }
+
+    fn set_b(&mut self, b: Vector2<f64>)
+    {
+        if let Some(o) = self.post
+        {
+            self.scene.walls[o].set_a(b);
+        }
+        
+        self.scene.walls[self.this].set_b(b);
+    }
+    
+    fn set_a_b(&mut self, a: Vector2<f64>, b: Vector2<f64>)
+    {
+        if let Some(o) = self.pre
+        {
+            self.scene.walls[o].set_b(a);
+        }
+        if let Some(o) = self.post
+        {
+            self.scene.walls[o].set_a(b);
+        }
+        
+        self.scene.walls[self.this].set_a_b(a, b);
+    }
+    
+    #[inline]
+    fn get_a(&self) -> Vector2<f64>
+    {
+        return self.scene.walls[self.this].a;
+    }
+    #[inline]
+    fn get_b(&self) -> Vector2<f64>
+    {
+        return self.scene.walls[self.this].b;
+    }
+    #[inline]
+    fn get_a_b(&self) -> (Vector2<f64>, Vector2<f64>)
+    {
+        let w = &self.scene.walls[self.this];
+        return (w.a, w.b);
+    }
+}
+
 impl Scene
 {
-    pub fn snap_wall_point(&mut self, i: usize, ab: bool, wp: Vector2<f64>)
+    pub fn get_ui_wall(&mut self, i: usize) -> SceneWallRef<'_>
     {
-        let w = &self.walls[i];
-        let origin = if ab { w.a }
-            else           { w.b };
+        let pre = if i == 0 { None }
+            else { Some(i - 1) };
+        let post = if i == (self.walls.len() - 1) { None }
+            else { Some(i + 1) };
         
-        self.set_wall_point(i, ab, snap_point(origin, wp));
+        return SceneWallRef {
+            scene: self,
+            pre,
+            this: i,
+            post
+        };
     }
-    pub fn set_wall_point(&mut self, i: usize, ab: bool, p: Vector2<f64>)
-    {
-        let max = self.walls.len() - 1;
-        match (i, ab)
-        {
-            (0, false) => self.walls[0].set_a(p),
-            (val, true) if val == max => self.walls[max].set_b(p),
-            _ =>
-            {
-                let i = if ab { i + 1 }
-                else { i };
-                let j = i - 1;
-                self.walls[i].set_a(p);
-                self.walls[j].set_b(p);
-            }
-        }
-    }
+    
     pub fn set_slit_pos(&mut self, i: usize, j: usize, wp: Vector2<f64>)
     {
         let w = &mut self.walls[i];
@@ -46,7 +98,7 @@ impl Scene
         let end = w.slits.len() - 1;
         let max = match j
         {
-            x if x == end => w.a.distance(w.b) - hw,
+            x if x == end => w.len() - hw,
             _ => w.slits[j + 1].get_left() - hw
         };
         
@@ -54,38 +106,11 @@ impl Scene
         let dist = (wp - w.a).dot(w.dir);
         w.slits[j].position = dist.clamp(min, max);
     }
-    pub fn set_wall_pos(&mut self, i: usize, a: Vector2<f64>)
-    {
-        let w = &self.walls[i];
-        let off = a - w.a;
-        let b = w.b + off;
-        
-        let max = self.walls.len() - 1;
-        match (i, max)
-        {
-            (0, 0) => (),
-            (0, _) => self.walls[i + 1].set_a(b),
-            (x, _) if x == max => self.walls[i - 1].set_b(a),
-            (_, _) =>
-            {
-                self.walls[i - 1].set_b(a);
-                self.walls[i + 1].set_a(b);
-            }
-        }
-        
-        self.walls[i].shift(off);
-    }
     
     pub fn mouse_point(&self, wp: Vector2<f64>, zoom: f32) -> SceneUIRef
     {
         let md = (SL / zoom) as f64;
         let md = md * md;
-        
-        // let screen_wall = Wall::new(self.env.screen.0, self.env.screen.1);
-        // if wall_square_dist(wp, &screen_wall) < md
-        // {
-        //     return SceneUIRef::Screen(())
-        // }
         
         let mut close = md;
         let mut ui_ref = SceneUIRef::None;
@@ -131,17 +156,25 @@ impl Scene
             }
         }
         
+        let screen_wall = Wall::new(self.env.screen.0, self.env.screen.1);
+        let s_d = wall_square_dist(wp, &screen_wall);
+        if s_d < close
+        {
+            close = s_d;
+            ui_ref = SceneUIRef::Screen;
+        }
+        
         let a_dist = wp.squared_distance(self.env.screen.0);
         if a_dist < close
         {
             close = a_dist;
-            ui_ref = SceneUIRef::Screen(false);
+            ui_ref = SceneUIRef::ScreenPoint(false);
         }
         let b_dist = wp.squared_distance(self.env.screen.1);
         if b_dist < close
         {
             // close = b_dist;
-            ui_ref = SceneUIRef::Screen(true);
+            ui_ref = SceneUIRef::ScreenPoint(true);
         }
         
         return ui_ref;
@@ -186,13 +219,38 @@ impl Scene
                     {
                         close = d;
                         index = i;
-                        x2 = p.squared_distance(w.a);
+                        x2 = t * t;
                     }
                 }
             }
         }
         
         return (index, x2.sqrt());
+    }
+    
+    pub fn get_ref_pos(&self, sur: SceneUIRef) -> Vector2<f64>
+    {
+        return match sur
+        {
+            SceneUIRef::None => Vector2::zero(),
+            SceneUIRef::Slit(i, j) =>
+            {
+                let w = &self.walls[i];
+                return w.slits[j].get_position(&w);
+            },
+            SceneUIRef::Wall(i) => self.walls[i].a, 
+            SceneUIRef::Point(i, ab) =>
+            {
+                return if ab { self.walls[i].b }
+                    else     { self.walls[i].a };
+            },
+            SceneUIRef::ScreenPoint(lr) =>
+            {
+                return if lr { self.env.screen.1 }
+                    else     { self.env.screen.0 };
+            },
+            SceneUIRef::Screen => self.env.screen.0
+        };
     }
 }
 

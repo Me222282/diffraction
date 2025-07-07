@@ -229,3 +229,125 @@ pub fn snap_point(origin: Vector2<f64>, wp: Vector2<f64>) -> Vector2<f64>
     
     return np;
 }
+
+pub trait UIWall
+{
+    fn set_a(&mut self, a: Vector2<f64>);
+    fn set_b(&mut self, b: Vector2<f64>);
+    fn get_a(&self) -> Vector2<f64>;
+    fn get_b(&self) -> Vector2<f64>;
+    
+    fn set_a_b(&mut self, a: Vector2<f64>, b: Vector2<f64>)
+    {
+        self.set_a(a);
+        self.set_b(b);
+    }
+    fn get_a_b(&self) -> (Vector2<f64>, Vector2<f64>)
+    {
+        return (self.get_a(), self.get_b());
+    }
+    
+    fn shift_whole_wall(&mut self, a: Vector2<f64>)
+    {
+        let old = self.get_a_b();
+        self.set_a_b(a, old.1 + a - old.0);
+    }
+    
+    fn snap_wall_point(&mut self, ab: bool, wp: Vector2<f64>, old: (Vector2<f64>, Vector2<f64>), fixed_len: bool)
+    {
+        let origin = if ab { old.0 }
+            else           { old.1 };
+        
+        self.set_wall_point(ab, snap_point(origin, wp), old, fixed_len);
+    }
+    
+    fn set_wall_point(&mut self, ab: bool, mut p: Vector2<f64>, old: (Vector2<f64>, Vector2<f64>), fixed_len: bool)
+    {
+        // make sure reference point is what it was
+        match ab
+        {
+            true if old.0 != self.get_a() => self.set_a(old.0),
+            false if old.1 != self.get_b() => self.set_b(old.1),
+            _ => ()
+        }
+        
+        if fixed_len
+        {
+            let origin = match ab
+            {
+                true => old.0,
+                false => old.1
+            };
+            let nd = p - origin;
+            let sd = nd * (old.0.squared_distance(old.1) / nd.squared_length()).sqrt();
+            p = origin + sd;
+        }
+        
+        if ab
+        {
+            self.set_b(p);
+            return;
+        }
+        
+        self.set_a(p);
+    }
+    
+    fn snap_wall_points(&mut self, ab: bool, wp: Vector2<f64>, old: (Vector2<f64>, Vector2<f64>), fixed_len: bool)
+    {
+        let origin = (old.0 + old.1) * 0.5;
+        self.set_wall_points(ab, snap_point(origin, wp), old, fixed_len);
+    }
+    fn set_wall_points(&mut self, ab: bool, wp: Vector2<f64>, old: (Vector2<f64>, Vector2<f64>), fixed_len: bool)
+    {
+        let (mut a, mut b) = match ab
+        {
+            true =>
+            {
+                let off = wp - old.1;
+                let a = old.0 - off;
+                (a, wp)
+            },
+            false =>
+            {
+                let off = wp - old.0;
+                let b = old.1 - off;
+                (wp, b)
+            }
+        };
+        
+        if fixed_len
+        {
+            let nd = b - a;
+            let sd = nd * (old.0.squared_distance(old.1) / nd.squared_length()).sqrt() * 0.5;
+            let mid = (a + b) * 0.5;
+            a = mid - sd;
+            b = mid + sd;
+        }
+        
+        self.set_a_b(a, b);
+    }
+}
+
+impl UIWall for (Vector2<f64>, Vector2<f64>)
+{
+    #[inline]
+    fn set_a(&mut self, a: Vector2<f64>)
+    {
+        self.0 = a;
+    }
+    #[inline]
+    fn set_b(&mut self, b: Vector2<f64>)
+    {
+        self.1 = b;
+    }
+    #[inline]
+    fn get_a(&self) -> Vector2<f64>
+    {
+        return self.0;
+    }
+    #[inline]
+    fn get_b(&self) -> Vector2<f64>
+    {
+        return self.1;
+    }
+}

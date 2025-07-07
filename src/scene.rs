@@ -89,11 +89,25 @@ impl Wall
     {
         return (self.a, self.b);
     }
-    pub fn shift(&mut self, off: Vector2<f64>)
+    pub fn set_a_b(&mut self, a: Vector2<f64>, b: Vector2<f64>)
     {
-        self.a += off;
-        self.b += off;
+        let len2 = self.a.squared_distance(self.b);
+        
+        self.a = a;
+        self.b = b;
+        self.dir = (b - a).normalised();
+        
+        self.scale_slits(len2);
     }
+    pub fn len(&self) -> f64
+    {
+        return self.a.distance(self.b);
+    }
+    // pub fn shift(&mut self, off: Vector2<f64>)
+    // {
+    //     self.a += off;
+    //     self.b += off;
+    // }
     
     pub fn split(&mut self, pos: f64) -> Wall
     {
@@ -143,6 +157,8 @@ pub struct Scene
     walls: Vec<Wall>
 }
 
+pub const DEFAULT_WIDTH: f64 = 1560.0;
+
 impl Default for Scene
 {
     fn default() -> Self
@@ -156,7 +172,7 @@ impl Default for Scene
                 a: Vector2::new(-1e9, -1e9),
                 b: Vector2::new(1e9, -1e9),
                 dir: Vector2::new(1.0, 0.0),
-                slits: vec![SceneSlit { width: 1560.0, position: 1e9}]
+                slits: vec![SceneSlit { width: DEFAULT_WIDTH, position: 1e9}]
             }]
         };
     }
@@ -196,9 +212,36 @@ impl Scene
         }
         return sim_slits;
     }
+    pub fn simulate_ghost<S>(&self, wave_map: &[(f64, Vector3)], samples: &mut [S], ghost: (SceneSlit, usize))
+        where S: From<Vector3>
+    {
+        let sim_slits = self.get_slits_ghost(ghost);
+        self.env.generate_pattern(&sim_slits, wave_map, samples);
+    }
+    fn get_slits_ghost(&self, ghost: (SceneSlit, usize)) -> Vec<Slit<f64>>
+    {
+        let mut sim_slits = Vec::<Slit<f64>>::with_capacity(self.walls.len() * 2);
+        for (i, w) in self.walls.iter().enumerate()
+        {
+            if i == ghost.1
+            {
+                sim_slits.push(ghost.0.get_slit(w, &self.waves));
+            }
+            for s in &w.slits
+            {
+                sim_slits.push(s.get_slit(w, &self.waves));
+            }
+        }
+        return sim_slits;
+    }
     pub fn get_wall(&self, i: usize) -> &Wall
     {
         return &self.walls[i];
+    }
+    
+    pub fn insert_slit(&mut self, slit: (SceneSlit, usize))
+    {
+        self.walls[slit.1].insert_slit(slit.0.width, slit.0.position);
     }
 }
 
@@ -210,7 +253,8 @@ pub enum SceneUIRef
     Slit(usize, usize),
     Wall(usize),
     Point(usize, bool),
-    Screen(bool)
+    ScreenPoint(bool),
+    Screen
 }
 
 #[repr(packed, C)]
@@ -224,7 +268,7 @@ pub struct SceneUIData
 {
     pub selection: SceneUIRef,
     pub hover: SceneUIRef,
-    pub ghost: Option<SceneSlit>,
+    pub ghost: Option<(SceneSlit, usize)>,
     pub lines: Vec<LineData>,
     pub zoom: f32,
     pub pan: Vector2
@@ -256,18 +300,14 @@ impl SceneUIData
     {
         let mut data = Vec::<LineData>::with_capacity(scene.walls.len() * 4);
         
-        let ghost = self.ghost.unwrap_or(SceneSlit { width: f64::NAN, position: f64::NAN });
+        let ghost = self.ghost.unwrap_or((SceneSlit { width: f64::NAN, position: f64::NAN }, 0));
         
         for (i, w) in scene.walls.iter().enumerate()
         {
             let d = w.dir;
             let n = w.dir.rotated_90() * ((sl / self.zoom) as f64);
             
-            let g_here = match self.hover
-            {
-                SceneUIRef::Wall(a) => a == i,
-                _ => false
-            };
+            let g_here = ghost.1 == i;
             
             let cw = get_colour(i, None, self.selection, self.hover);
             let mut last = w.a;
@@ -291,17 +331,24 @@ impl SceneUIData
                 data.push(LineData(as_32(b - n), c));
             };
             
+            let mut g_insert = false;
             // assume slits sorted by position
             for (j, s) in w.slits.iter().enumerate()
             {
                 // insert before - always false if ghost is NAN
-                if g_here && ghost.position < s.position
+                if g_here && !g_insert && ghost.0.position < s.position
                 {
-                    insert(&ghost, GHOST);
+                    g_insert = true;
+                    insert(&ghost.0, GHOST);
                 }
                 
                 let cs = get_colour(i, Some(j), self.selection, self.hover);
                 insert(s, cs);
+            }
+            
+            if g_here && !g_insert && ghost.0.position.is_finite()
+            {
+                insert(&ghost.0, GHOST);
             }
             
             // finish wall
