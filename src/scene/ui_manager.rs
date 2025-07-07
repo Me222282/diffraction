@@ -1,5 +1,6 @@
 use core::f64;
 
+use backend::snap_point;
 use zene_structs::{Line2, Vector, Vector2};
 
 use crate::SL;
@@ -7,6 +8,14 @@ use super::{Scene, SceneSlit, SceneUIRef, Wall};
 
 impl Scene
 {
+    pub fn snap_wall_point(&mut self, i: usize, ab: bool, wp: Vector2<f64>)
+    {
+        let w = &self.walls[i];
+        let origin = if ab { w.a }
+            else           { w.b };
+        
+        self.set_wall_point(i, ab, snap_point(origin, wp));
+    }
     pub fn set_wall_point(&mut self, i: usize, ab: bool, p: Vector2<f64>)
     {
         let max = self.walls.len() - 1;
@@ -41,6 +50,7 @@ impl Scene
             _ => w.slits[j + 1].get_left() - hw
         };
         
+        // normalised direction
         let dist = (wp - w.a).dot(w.dir);
         w.slits[j].position = dist.clamp(min, max);
     }

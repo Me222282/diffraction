@@ -1,4 +1,6 @@
 mod fft;
+use std::f64::consts::FRAC_1_SQRT_2;
+
 pub use crate::fft::*;
 
 mod diffraction;
@@ -21,7 +23,8 @@ use num::Float;
 use num::traits::ConstOne;
 use num::traits::ConstZero;
 use num::traits::FloatConst;
-use zene_structs::Vector3;
+use num::Zero;
+use zene_structs::{Vector2, Vector3, Vector};
 
 fn next_power_of_2(n: usize) -> u32
 {
@@ -184,3 +187,45 @@ impl IntoF32 for f64
 //         return self as f32;
 //     }
 // }
+
+const SQRT_2_2_2N: f64 = 0.3826834323650897;
+const SQRT_2_2_2: f64 = 0.9238795325112867;
+const SNAP_DIR: [Vector2<f64>; 16] = [
+    Vector2::new(1.0, 0.0),
+    Vector2::new(-1.0, 0.0),
+    Vector2::new(0.0, 1.0),
+    Vector2::new(0.0, -1.0),
+    Vector2::new(FRAC_1_SQRT_2, FRAC_1_SQRT_2),
+    Vector2::new(FRAC_1_SQRT_2, -FRAC_1_SQRT_2),
+    Vector2::new(-FRAC_1_SQRT_2, -FRAC_1_SQRT_2),
+    Vector2::new(-FRAC_1_SQRT_2, FRAC_1_SQRT_2),
+    
+    Vector2::new(SQRT_2_2_2N, SQRT_2_2_2),
+    Vector2::new(-SQRT_2_2_2N, SQRT_2_2_2),
+    Vector2::new(-SQRT_2_2_2N, -SQRT_2_2_2),
+    Vector2::new(SQRT_2_2_2N, -SQRT_2_2_2),
+    Vector2::new(SQRT_2_2_2, SQRT_2_2_2N),
+    Vector2::new(-SQRT_2_2_2, SQRT_2_2_2N),
+    Vector2::new(-SQRT_2_2_2, -SQRT_2_2_2N),
+    Vector2::new(SQRT_2_2_2, -SQRT_2_2_2N)
+];
+
+pub fn snap_point(origin: Vector2<f64>, wp: Vector2<f64>) -> Vector2<f64>
+{
+    let mut dist = f64::MAX;
+    let mut np = Vector2::<f64>::zero();
+    for dir in SNAP_DIR
+    {
+        // direction is normalised
+        let t = (wp - origin).dot(dir);
+        let p = origin + (dir * t);
+        let d = wp.squared_distance(p);
+        if d < dist
+        {
+            dist = d;
+            np = p;
+        }
+    }
+    
+    return np;
+}

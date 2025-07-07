@@ -5,7 +5,7 @@ mod scene;
 
 use std::f32::consts::{PI, TAU};
 
-use backend::{Colour, WCache};
+use backend::{snap_point, Colour, WCache};
 use iced::keyboard::Modifiers;
 use iced::widget::{container, horizontal_rule};
 use iced::{widget::{button, column, container::Style, row, slider, text, toggler, vertical_slider, Space}, Alignment, Background, Color, Element, Length, Padding};
@@ -283,14 +283,29 @@ fn update(state: &mut State, message: Message)
                 },
                 SceneUIRef::Point(i, ab) =>
                 {
-                    state.scene.set_wall_point(i, ab, wp);
+                    if mods.shift()
+                    {
+                        state.scene.snap_wall_point(i, ab, wp);
+                    }
+                    else
+                    {
+                        state.scene.set_wall_point(i, ab, wp);
+                    }
                 },
                 SceneUIRef::Screen(lr) =>
                 {
-                    match lr
+                    match (lr, mods.shift())
                     {
-                        false => state.scene.env.screen.0 = wp,
-                        true => state.scene.env.screen.1 = wp,
+                        (false, false) => state.scene.env.screen.0 = wp,
+                        (true, false) => state.scene.env.screen.1 = wp,
+                        (false, true) =>
+                        {
+                            state.scene.env.screen.0 = snap_point(state.scene.env.screen.1, wp);
+                        },
+                        (true, true) =>
+                        {
+                            state.scene.env.screen.1 = snap_point(state.scene.env.screen.0, wp);
+                        }
                     }
                 },
                 _ => return,
