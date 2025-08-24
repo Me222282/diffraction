@@ -212,22 +212,23 @@ const SNAP_DIR: [Vector2<f64>; 16] = [
 
 pub fn snap_point(origin: Vector2<f64>, wp: Vector2<f64>) -> Vector2<f64>
 {
+    let diff = origin - wp;
+    let length = diff.length();
+    let dir_norm = diff / length;
     let mut dist = f64::MAX;
-    let mut np = Vector2::<f64>::zero();
+    let mut use_dir = Vector2::<f64>::zero();
     for dir in SNAP_DIR
     {
-        // direction is normalised
-        let t = (wp - origin).dot(dir);
-        let p = origin + (dir * t);
-        let d = wp.squared_distance(p);
-        if d < dist
+        // dir is normalised
+        let t = dir_norm.dot(dir);
+        if t < dist
         {
-            dist = d;
-            np = p;
+            dist = t;
+            use_dir = dir;
         }
     }
     
-    return np;
+    return origin + (use_dir * length);
 }
 
 pub trait UIWall

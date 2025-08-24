@@ -156,25 +156,24 @@ impl Scene
             }
         }
         
-        let screen_wall = Wall::new(self.env.screen.0, self.env.screen.1);
-        let s_d = wall_square_dist(wp, &screen_wall);
-        if s_d < close
-        {
-            close = s_d;
-            ui_ref = SceneUIRef::Screen;
-        }
-        
         let a_dist = wp.squared_distance(self.env.screen.0);
         if a_dist < close
         {
-            close = a_dist;
-            ui_ref = SceneUIRef::ScreenPoint(false);
+            // close = a_dist;
+            return SceneUIRef::ScreenPoint(false);
         }
         let b_dist = wp.squared_distance(self.env.screen.1);
         if b_dist < close
         {
             // close = b_dist;
-            ui_ref = SceneUIRef::ScreenPoint(true);
+            return SceneUIRef::ScreenPoint(true);
+        }
+        let screen_wall = Wall::new(self.env.screen.0, self.env.screen.1);
+        let s_d = wall_square_dist(wp, &screen_wall);
+        if s_d < close
+        {
+            // close = s_d;
+            ui_ref = SceneUIRef::Screen;
         }
         
         return ui_ref;
