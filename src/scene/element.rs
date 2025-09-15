@@ -16,6 +16,7 @@ pub struct MessageFuncs<Message>
     pub on_pan: fn(Vector2) -> Message,
     pub on_hover: fn(SceneUIRef) -> Message,
     pub on_select: fn(SceneUIRef) -> Message,
+    pub on_delete: fn(SceneUIRef) -> Message,
     pub on_drag: fn(SceneUIRef, Vector2<f64>, Vector2<f64>, Modifiers) -> Message,
     pub on_cancel: fn() -> Message,
     pub on_ghost: fn(usize, f64) -> Message,
@@ -129,6 +130,17 @@ impl<'a, Message: 'static> Program<Message> for SceneEl<'a, Message>
                             self.mouse_hover(state, bounds, pan_div, cursor, shell, true);
                             return (Status::Captured, Some((self.funcs.on_select)(SceneUIRef::None)));
                         }
+                    },
+                    iced::keyboard::Key::Named(iced::keyboard::key::Named::Delete) |
+                    iced::keyboard::Key::Named(iced::keyboard::key::Named::Backspace) =>
+                    {
+                        let select = state.select;
+                        state.select = SceneUIRef::None;
+                        if state.select == state.hover
+                        {
+                            state.hover = SceneUIRef::None;
+                        }
+                        return (Status::Captured, Some((self.funcs.on_delete)(select)));
                     },
                     _ => ()
                 }

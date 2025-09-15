@@ -243,6 +243,15 @@ impl Scene
     {
         self.walls[slit.1].insert_slit(slit.0.width, slit.0.position);
     }
+    pub fn delete_slit(&mut self, wall: usize, slit: usize)
+    {
+        self.walls[wall].slits.remove(slit);
+    }
+    pub fn delete_wall(&mut self, wall: usize)
+    {
+        if (self.walls.len() <= 1) { return; }
+        self.walls.remove(wall);
+    }
 }
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq)]

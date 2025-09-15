@@ -29,6 +29,7 @@ const SCENE_MESSAGES: MessageFuncs<Message> = MessageFuncs
     on_pan: Message::PanScene,
     on_hover: Message::SceneHover,
     on_select: Message::SceneSelect,
+    on_delete: Message::SceneDelete,
     on_cancel: Message::SceneCancel,
     on_drag: Message::SceneDrag,
     on_ghost: Message::GhostScene,
@@ -61,6 +62,7 @@ enum Message
     SceneHover(SceneUIRef),
     SceneSelect(SceneUIRef),
     SceneDrag(SceneUIRef, Vector2<f64>, Vector2<f64>, Modifiers),
+    SceneDelete(SceneUIRef),
     SceneCancel(),
     GhostScene(usize, f64),
     EndGhostScene(bool)
@@ -327,6 +329,29 @@ fn update(state: &mut State, message: Message)
             
             if state.scene_ui.selection == scene_uiref { return; }
             state.scene_ui.selection = scene_uiref;
+            state.scene_ui.generate_lines(&state.scene, SL);
+        },
+        Message::SceneDelete(scene_uiref) =>
+        {
+            match scene_uiref
+            {
+                SceneUIRef::None => return,
+                SceneUIRef::Slit(wall, slit) => state.scene.delete_slit(wall, slit),
+                SceneUIRef::Wall(wall) => state.scene.delete_wall(wall),
+                SceneUIRef::Point(_, _) => return,
+                SceneUIRef::ScreenPoint(_) => return,
+                SceneUIRef::Screen => return,
+            }
+            
+            if state.scene_ui.selection == scene_uiref
+            {
+                state.scene_ui.selection = SceneUIRef::None;
+            }
+            if state.scene_ui.hover == scene_uiref
+            {
+                state.scene_ui.hover = SceneUIRef::None;
+            }
+            
             state.scene_ui.generate_lines(&state.scene, SL);
         },
         Message::SceneDrag(scene_uiref, pp, wp, mods) =>
